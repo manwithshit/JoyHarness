@@ -70,10 +70,10 @@ DEFAULT_MAPPINGS: dict = {
         "SR":     {"action": "tap", "key": "f5"},
     },
     "stick_directions": {
-        "up":    {"action": "auto", "key": "down"},
-        "down":  {"action": "auto", "key": "up"},
-        "left":  {"action": "auto", "key": "left"},
-        "right": {"action": "auto", "key": "right"},
+        "up":    {"action": "auto", "key": "down", "repeat": 100},
+        "down":  {"action": "auto", "key": "up", "repeat": 100},
+        "left":  {"action": "auto", "key": "left", "repeat": 100},
+        "right": {"action": "auto", "key": "right", "repeat": 100},
     },
 }
 

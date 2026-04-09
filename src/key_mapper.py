@@ -48,6 +48,9 @@ class KeyMapper:
         # Track sequence repeat: btn_idx → {keys, interval, last_time}
         self._sequence_repeat: dict[int, dict] = {}
 
+        # Track stick direction repeat: ("stick", direction) → {key, interval, last_time}
+        self._stick_repeat: dict[tuple, dict] = {}
+
         # Track auto-action pending state: btn_idx → (key, press_time)
         self._auto_pending: dict[int, tuple[str, float]] = {}
 
@@ -181,12 +184,21 @@ class KeyMapper:
                 btn_name = _button_label(btn_idx)
                 logger.debug("sequence repeat [%s] → %s", btn_name, "+".join(info["keys"]))
 
+        # Stick direction repeat (e.g., arrow key every 100ms while held)
+        for k in list(self._stick_repeat.keys()):
+            info = self._stick_repeat[k]
+            if now - info["last_time"] >= info["interval"]:
+                keyboard_output.tap(info["key"])
+                info["last_time"] = now
+                logger.debug("stick repeat [%s] → %s", k[1], info["key"])
+
     def _release_stick_auto(self) -> None:
-        """Release current stick hold key."""
+        """Release current stick hold key and cancel repeat."""
         stick_keys = [k for k in self._active_holds if isinstance(k, tuple) and k[0] == "stick"]
         for k in stick_keys:
             key = self._active_holds.pop(k)
             keyboard_output.release(key)
+            self._stick_repeat.pop(k, None)
             logger.debug("stick release [%s] → %s", k[1], key)
 
     def stick_direction(self, direction: str) -> None:
@@ -204,10 +216,16 @@ class KeyMapper:
             logger.debug("stick [%s] → %s", direction, mapping["key"])
         elif action == "auto":
             key = mapping["key"]
-            # Stick auto = immediate hold (no short/long distinction for analog)
-            keyboard_output.press(key)
+            repeat_ms = mapping.get("repeat", 100)
+            # Tap once immediately, then repeat at interval via poll()
+            keyboard_output.tap(key)
             self._active_holds[("stick", direction)] = key
-            logger.debug("stick auto HOLD [%s] → %s", direction, key)
+            self._stick_repeat[("stick", direction)] = {
+                "key": key,
+                "interval": repeat_ms / 1000.0,
+                "last_time": time.monotonic(),
+            }
+            logger.debug("stick auto [%s] → %s (repeat=%dms)", direction, key, repeat_ms)
         elif action == "combination":
             keyboard_output.send_combination(mapping["keys"])
             logger.debug("stick [%s] → %s", direction, "+".join(mapping["keys"]))
@@ -225,6 +243,7 @@ class KeyMapper:
                 keyboard_output.release(key)
         self._active_sequences.clear()
         self._sequence_repeat.clear()
+        self._stick_repeat.clear()
         # Release holds
         for key in self._active_holds.values():
             keyboard_output.release(key)
