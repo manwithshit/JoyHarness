@@ -1,13 +1,15 @@
 """Main GUI for NS Joy-Con R Keyboard Mapper.
 
-Provides a tkinter window with controls for:
+Uses ttkbootstrap for a modern dark theme appearance.
+Provides controls for:
 - Enabling/disabling stick mapping
 - Selecting target applications for window switching (R key)
 """
 
 import logging
-import tkinter as tk
-from tkinter import ttk
+
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 
 from .window_switcher import KNOWN_APPS
 
@@ -29,13 +31,20 @@ class MainWindow:
         self._stop_event = stop_event
         self._on_minimize = on_minimize
 
-        self._root = tk.Tk()
-        self._root.title("NS Joy-Con R 键盘映射器")
-        self._root.resizable(False, False)
+        self._root = ttk.Window(
+            title="NS Joy-Con R 键盘映射器",
+            themename="darkly",
+            size=(340, 300),
+            resizable=(False, False),
+        )
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        # Remove native title bar for a clean dark look
+        self._root.overrideredirect(True)
+        self._root.attributes("-topmost", False)
+
         # App selection variables: display_name → BooleanVar
-        self._app_vars: dict[str, tk.BooleanVar] = {}
+        self._app_vars: dict = {}
 
         self._build_ui()
         self._center_window()
@@ -43,54 +52,87 @@ class MainWindow:
     def _build_ui(self) -> None:
         """Build the UI layout."""
         root = self._root
-        root.configure(padx=20, pady=15)
 
-        # Title
-        title = ttk.Label(root, text="NS Joy-Con R 键盘映射器", font=("", 14, "bold"))
-        title.pack(anchor="w", pady=(0, 15))
+        # Custom title bar (draggable, with close & minimize buttons)
+        titlebar = ttk.Frame(root, cursor="fleur")
+        titlebar.pack(fill=X)
+
+        # Title text in title bar
+        title_text = ttk.Label(
+            titlebar,
+            text="  🎮 NS Joy-Con R",
+            font=("Microsoft YaHei UI", 12, "bold"),
+            bootstyle=INFO,
+        )
+        title_text.pack(side=LEFT, padx=(8, 0), pady=8)
+
+        # Minimize & close buttons
+        close_btn = ttk.Label(titlebar, text=" ✕ ", font=("", 11), bootstyle=DANGER, cursor="hand2")
+        close_btn.pack(side=RIGHT, padx=(0, 4), pady=6)
+        close_btn.bind("<Button-1>", lambda e: self._on_close())
+
+        min_btn = ttk.Label(titlebar, text=" ─ ", font=("", 11), bootstyle=SECONDARY, cursor="hand2")
+        min_btn.pack(side=RIGHT, padx=(0, 2), pady=6)
+        min_btn.bind("<Button-1>", lambda e: self._on_minimize_click())
+
+        # Drag binding on title bar
+        for widget in (titlebar, title_text):
+            widget.bind("<ButtonPress-1>", self._start_drag)
+            widget.bind("<B1-Motion>", self._do_drag)
+
+        # Separator below title bar
+        ttk.Separator(root).pack(fill=X)
+
+        # Main content area
+        main = ttk.Frame(root, padding=(20, 12, 20, 16))
+        main.pack(fill=BOTH, expand=True)
 
         # Stick enable toggle
-        self._stick_var = tk.BooleanVar(value=True)
-        stick_frame = ttk.Frame(root)
-        stick_frame.pack(fill="x", pady=(0, 15))
+        self._stick_var = ttk.BooleanVar(value=True)
         stick_cb = ttk.Checkbutton(
-            stick_frame,
-            text="启用摇杆映射",
+            main,
+            text="  启用摇杆映射",
             variable=self._stick_var,
             command=self._on_stick_toggle,
+            bootstyle=SUCCESS,
         )
-        stick_cb.pack(anchor="w")
+        stick_cb.pack(anchor=W, pady=(0, 12))
 
         # Window switch app selection
-        app_label = ttk.Label(root, text="R 键窗口切换目标：", font=("", 10))
-        app_label.pack(anchor="w", pady=(0, 5))
+        app_label = ttk.Label(
+            main,
+            text="R 键窗口切换目标：",
+            font=("Microsoft YaHei UI", 10),
+        )
+        app_label.pack(anchor=W, pady=(0, 6))
 
-        app_frame = ttk.Frame(root)
-        app_frame.pack(fill="x", padx=(15, 0), pady=(0, 15))
+        app_frame = ttk.Frame(main)
+        app_frame.pack(fill=X, padx=(20, 0), pady=(0, 12))
 
         for display_name, process_name in KNOWN_APPS.items():
-            var = tk.BooleanVar(value=(process_name == "code.exe"))
+            var = ttk.BooleanVar(value=(process_name == "code.exe"))
             self._app_vars[display_name] = var
             cb = ttk.Checkbutton(
                 app_frame,
-                text=display_name,
+                text=f"  {display_name}",
                 variable=var,
                 command=self._on_app_toggle,
+                bootstyle=INFO,
             )
-            cb.pack(anchor="w", pady=2)
+            cb.pack(anchor=W, pady=3)
 
-        # Separator
-        ttk.Separator(root).pack(fill="x", pady=(0, 15))
+        # Spacer
+        ttk.Frame(main).pack(fill=BOTH, expand=True)
 
-        # Bottom button
-        btn_frame = ttk.Frame(root)
-        btn_frame.pack(fill="x")
+        # Bottom: minimize button
         minimize_btn = ttk.Button(
-            btn_frame,
+            main,
             text="最小化到托盘",
             command=self._on_minimize_click,
+            bootstyle=SECONDARY,
+            width=16,
         )
-        minimize_btn.pack(side="right")
+        minimize_btn.pack(side=RIGHT)
 
     def _center_window(self) -> None:
         """Center the window on screen."""
@@ -99,6 +141,15 @@ class MainWindow:
         h = self._root.winfo_height()
         x = (self._root.winfo_screenwidth() - w) // 2
         y = (self._root.winfo_screenheight() - h) // 2
+        self._root.geometry(f"+{x}+{y}")
+
+    def _start_drag(self, event) -> None:
+        self._drag_x = event.x
+        self._drag_y = event.y
+
+    def _do_drag(self, event) -> None:
+        x = self._root.winfo_x() + event.x - self._drag_x
+        y = self._root.winfo_y() + event.y - self._drag_y
         self._root.geometry(f"+{x}+{y}")
 
     def _on_stick_toggle(self) -> None:
@@ -131,7 +182,7 @@ class MainWindow:
         self._root.destroy()
 
     @property
-    def root(self) -> tk.Tk:
+    def root(self):
         """Get the tkinter root window."""
         return self._root
 
