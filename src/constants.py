@@ -58,11 +58,21 @@ STICK_DIRECTIONS = ("up", "down", "left", "right", "up-left", "up-right", "down-
 DEFAULT_MAPPINGS: dict = {
     "buttons": {
         "A":      {"action": "tap", "key": "enter"},
-        "B":      {"action": "tap", "key": "escape"},
+        "B":      {"action": "tap", "key": "esc"},
         "X":      {"action": "auto", "key": "f2"},
         "Y":      {"action": "sequence", "keys": ["alt", "tab"], "repeat": 500},
         "R":      {"action": "window_switch"},
-        "ZR":     {"action": "hold", "key": "shift"},
+        "ZR":     {
+            "action": "macro",
+            "if_window": "code.exe",
+            "steps": [
+                {"type": "combination", "keys": ["ctrl", "shift", "p"]},
+                {"type": "delay", "ms": 100},
+                {"type": "type", "text": "Claude Code: Focus input"},
+                {"type": "delay", "ms": 100},
+                {"type": "tap", "key": "enter"},
+            ],
+        },
         "Plus":   {"action": "combination", "keys": ["ctrl", "s"]},
         "Home":   {"action": "tap", "key": "windows"},
         "RStick": {"action": "tap", "key": "tab"},
@@ -86,4 +96,4 @@ DEFAULT_CONFIG: dict = {
     "mappings": DEFAULT_MAPPINGS,
 }
 
-VALID_ACTIONS = ("tap", "hold", "auto", "combination", "sequence", "window_switch")
+VALID_ACTIONS = ("tap", "hold", "auto", "combination", "sequence", "window_switch", "macro")

@@ -15,7 +15,7 @@ import logging
 
 from . import keyboard_output
 from .constants import BUTTON_INDICES
-from .window_switcher import WindowCycler
+from .window_switcher import WindowCycler, get_foreground_process_name
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +129,9 @@ class KeyMapper:
                 logger.info("window_switch [%s] → %s", btn_name, target.title)
             else:
                 logger.warning("window_switch [%s] → no VS Code windows found", btn_name)
+
+        elif action == "macro":
+            self._execute_macro(mapping, btn_name)
 
     def button_up(self, button_index: int) -> None:
         """Handle a button release event."""
@@ -262,6 +265,59 @@ class KeyMapper:
             keyboard_output.release(key)
         self._active_holds.clear()
         self._auto_pending.clear()
+
+
+    def _execute_macro(self, mapping: dict, btn_name: str) -> None:
+        """Execute a macro: a sequence of steps, optionally filtered by foreground window.
+
+        Config format:
+            {
+                "action": "macro",
+                "if_window": "code.exe",   # optional: only run if this process is foreground
+                "steps": [
+                    {"type": "combination", "keys": ["ctrl", "shift", "p"]},
+                    {"type": "delay", "ms": 300},
+                    {"type": "type", "text": "some text"},
+                    {"type": "tap", "key": "enter"},
+                ]
+            }
+        """
+        # Check window filter
+        if_window = mapping.get("if_window")
+        if if_window:
+            fg = get_foreground_process_name()
+            if fg != if_window:
+                logger.debug("macro [%s] skipped: foreground is '%s', need '%s'",
+                             btn_name, fg, if_window)
+                return
+
+        steps = mapping.get("steps", [])
+        logger.info("macro [%s] executing %d steps", btn_name, len(steps))
+
+        for i, step in enumerate(steps):
+            step_type = step.get("type")
+
+            if step_type == "combination":
+                keyboard_output.send_combination(step["keys"])
+
+            elif step_type == "tap":
+                keyboard_output.tap(step["key"])
+
+            elif step_type == "hold":
+                keyboard_output.press(step["key"])
+
+            elif step_type == "release":
+                keyboard_output.release(step["key"])
+
+            elif step_type == "type":
+                keyboard_output.type_text(step["text"])
+
+            elif step_type == "delay":
+                time.sleep(step.get("ms", 100) / 1000.0)
+
+            else:
+                logger.warning("macro [%s] unknown step type '%s' at step %d",
+                               btn_name, step_type, i)
 
 
 def _button_label(button_index: int) -> str:

@@ -19,6 +19,12 @@ WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.wintypes.BOOL, ctypes.wintypes.HWND, cty
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
 
+def get_foreground_process_name() -> str:
+    """Return the exe name of the current foreground window's process (lowercase)."""
+    hwnd = user32.GetForegroundWindow()
+    return _get_process_name(hwnd)
+
+
 class WindowInfo(NamedTuple):
     hwnd: int
     title: str

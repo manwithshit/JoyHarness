@@ -73,3 +73,14 @@ def release_all() -> None:
 def is_held(key: str) -> bool:
     """Check if a key is currently being held."""
     return key in _held_keys
+
+
+def type_text(text: str, delay: float = 0.0) -> None:
+    """Type a string. Uses keyboard.write() for fast input.
+
+    Args:
+        text: The string to type.
+        delay: Ignored, kept for compatibility.
+    """
+    keyboard.write(text)
+    logger.debug("typed: %s", text)
