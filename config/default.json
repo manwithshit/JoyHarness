@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "description": "Default Joy-Con R to keyboard mapping",
+  "deadzone": 0.2,
+  "poll_interval": 0.01,
+  "stick_mode": "4dir",
+  "mappings": {
+    "buttons": {
+      "A":      { "action": "tap",         "key": "enter" },
+      "B":      { "action": "tap",         "key": "escape" },
+      "X":      { "action": "auto",        "key": "f2" },
+      "Y":      { "action": "combination", "keys": ["ctrl", "c"] },
+      "R":      { "action": "hold",        "key": "ctrl" },
+      "ZR":     { "action": "hold",        "key": "shift" },
+      "Plus":   { "action": "combination", "keys": ["ctrl", "s"] },
+      "Home":   { "action": "tap",         "key": "windows" },
+      "RStick": { "action": "tap",         "key": "tab" },
+      "SL":     { "action": "hold",        "key": "alt" },
+      "SR":     { "action": "tap",         "key": "f5" }
+    },
+    "stick_directions": {
+      "up":    { "action": "tap", "key": "up" },
+      "down":  { "action": "tap", "key": "down" },
+      "left":  { "action": "tap", "key": "left" },
+      "right": { "action": "tap", "key": "right" }
+    }
+  }
+}
