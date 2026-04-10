@@ -58,7 +58,7 @@ STICK_DIRECTIONS = ("up", "down", "left", "right", "up-left", "up-right", "down-
 DEFAULT_MAPPINGS: dict = {
     "buttons": {
         "A":      {"action": "tap", "key": "enter"},
-        "B":      {"action": "tap", "key": "esc"},
+        "B":      {"action": "sequence", "keys": ["shift", "tab"]},
         "X":      {"action": "auto", "key": "f2"},
         "Y":      {"action": "sequence", "keys": ["alt", "tab"], "repeat": 500},
         "R":      {"action": "window_switch"},
