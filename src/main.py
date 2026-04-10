@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 import pygame
 
-from src.config_loader import load_config
+from src.config_loader import load_config, USER_CONFIG_PATH
 from src.gui import MainWindow
 from src.joycon_reader import find_joycon, run_discover_mode, run_polling_loop, wait_for_reconnection
 from src.key_mapper import KeyMapper
@@ -141,9 +141,12 @@ def main() -> None:
         print("         Try: run.bat  or  run as admin in PowerShell")
         print()
 
-    # Load config
+    # Load config — prefer user config if it exists
+    config_path = args.config
+    if config_path is None and Path(USER_CONFIG_PATH).exists():
+        config_path = USER_CONFIG_PATH
     try:
-        config = load_config(args.config)
+        config = load_config(config_path)
     except (FileNotFoundError, ValueError) as e:
         print(f"Config error: {e}")
         sys.exit(1)
@@ -182,6 +185,13 @@ def main() -> None:
     print(f"Controller: {js.get_name()}")
     print(f"Buttons: {js.get_numbuttons()}, Axes: {js.get_numaxes()}")
     print(f"Deadzone: {config['deadzone']}, Stick mode: {config['stick_mode']}")
+
+    # Restore KNOWN_APPS from saved config
+    from src.window_switcher import KNOWN_APPS
+    known_apps = config.get("known_apps")
+    if known_apps:
+        KNOWN_APPS.clear()
+        KNOWN_APPS.update(known_apps)
 
     key_mapper = KeyMapper(config)
     stop_event = threading.Event()

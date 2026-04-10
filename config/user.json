@@ -1,0 +1,116 @@
+{
+  "version": "1.0",
+  "description": "Default Joy-Con R to keyboard mapping",
+  "deadzone": 0.2,
+  "poll_interval": 0.01,
+  "stick_mode": "4dir",
+  "mappings": {
+    "buttons": {
+      "A": {
+        "action": "tap",
+        "key": "enter"
+      },
+      "B": {
+        "action": "sequence",
+        "keys": [
+          "shift",
+          "tab"
+        ]
+      },
+      "X": {
+        "action": "auto",
+        "key": "f2"
+      },
+      "Y": {
+        "action": "sequence",
+        "keys": [
+          "alt",
+          "tab"
+        ],
+        "repeat": 500
+      },
+      "R": {
+        "action": "window_switch"
+      },
+      "ZR": {
+        "action": "macro",
+        "if_window": "code.exe",
+        "steps": [
+          {
+            "type": "combination",
+            "keys": [
+              "ctrl",
+              "shift",
+              "p"
+            ]
+          },
+          {
+            "type": "delay",
+            "ms": 100
+          },
+          {
+            "type": "type",
+            "text": "Claude Code: Focus input"
+          },
+          {
+            "type": "delay",
+            "ms": 100
+          },
+          {
+            "type": "tap",
+            "key": "enter"
+          }
+        ]
+      },
+      "Plus": {
+        "action": "combination",
+        "keys": [
+          "ctrl",
+          "s"
+        ]
+      },
+      "Home": {
+        "action": "tap",
+        "key": "windows"
+      },
+      "RStick": {
+        "action": "tap",
+        "key": "tab"
+      },
+      "SL": {
+        "action": "hold",
+        "key": "alt"
+      },
+      "SR": {
+        "action": "window_switch"
+      }
+    },
+    "stick_directions": {
+      "up": {
+        "action": "auto",
+        "key": "down",
+        "repeat": 100
+      },
+      "down": {
+        "action": "auto",
+        "key": "up",
+        "repeat": 100
+      },
+      "left": {
+        "action": "auto",
+        "key": "left",
+        "repeat": 100
+      },
+      "right": {
+        "action": "auto",
+        "key": "right",
+        "repeat": 100
+      }
+    }
+  },
+  "known_apps": {
+    "VS Code": "code.exe",
+    "飞书": "feishu.exe",
+    "chrome": "chrome.exe"
+  }
+}

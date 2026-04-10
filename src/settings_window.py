@@ -181,7 +181,9 @@ class SettingsWindow(ResizableMixin):
         self._app_list_frame = ttk.Frame(parent)
         self._app_list_frame.pack(fill=BOTH, expand=True)
 
-        for display_name, exe_name in KNOWN_APPS.items():
+        saved_apps = self._config.get("known_apps")
+        source = saved_apps if saved_apps else KNOWN_APPS
+        for display_name, exe_name in source.items():
             self._add_app_row(display_name, exe_name)
 
         ttk.Button(
@@ -284,6 +286,11 @@ class SettingsWindow(ResizableMixin):
         # Refresh main window app checkboxes
         if self._main_window:
             self._main_window.refresh_apps()
+
+        # Save config to disk
+        from .config_loader import save_config
+        self._config["known_apps"] = apps
+        save_config(self._config)
 
         logger.info("Settings applied. Apps: %s", apps)
         self._win.destroy()

@@ -1,7 +1,7 @@
-"""Configuration loading, validation, and default merging.
+"""Configuration loading, validation, saving, and default merging.
 
 Loads JSON config files, validates key names and action types,
-and merges user config with built-in defaults.
+merges user config with built-in defaults, and saves config to disk.
 """
 
 import json
@@ -18,6 +18,9 @@ from .constants import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+USER_CONFIG_PATH = str(Path(__file__).resolve().parent.parent / "config" / "user.json")
 
 
 def load_config(path: str | None = None) -> dict:
@@ -68,6 +71,10 @@ def merge_with_defaults(user_config: dict) -> dict:
     for key in ("version", "description", "deadzone", "poll_interval", "stick_mode"):
         if key in user_config:
             result[key] = user_config[key]
+
+    # Preserve known_apps from user config (not in DEFAULT_CONFIG)
+    if "known_apps" in user_config:
+        result["known_apps"] = user_config["known_apps"]
 
     # Deep merge mappings
     if "mappings" in user_config:
@@ -169,3 +176,19 @@ def _is_valid_key(key_name: str) -> bool:
         return len(codes) > 0
     except (ValueError, KeyError):
         return False
+
+
+def save_config(config: dict, path: str | None = None) -> None:
+    """Save configuration dict to a JSON file.
+
+    Args:
+        config: The complete configuration dict to save.
+        path: Target file path. Defaults to USER_CONFIG_PATH.
+    """
+    target = Path(path) if path else Path(USER_CONFIG_PATH)
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(target, "w", encoding="utf-8") as f:
+        json.dump(config, f, ensure_ascii=False, indent=2)
+
+    logger.info("Config saved to: %s", target)
