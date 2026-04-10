@@ -25,10 +25,21 @@ KNOWN_APPS: dict[str, str] = {
 }
 
 
+def set_known_apps(apps: dict[str, str]) -> None:
+    """Replace the known apps dict atomically."""
+    KNOWN_APPS.clear()
+    KNOWN_APPS.update(apps)
+
+
 def get_foreground_process_name() -> str:
     """Return the exe name of the current foreground window's process (lowercase)."""
     hwnd = user32.GetForegroundWindow()
     return _get_process_name(hwnd)
+
+
+def get_foreground_hwnd() -> int:
+    """Return the HWND of the current foreground window."""
+    return user32.GetForegroundWindow()
 
 
 class WindowInfo(NamedTuple):

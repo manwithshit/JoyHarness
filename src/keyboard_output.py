@@ -75,12 +75,7 @@ def is_held(key: str) -> bool:
     return key in _held_keys
 
 
-def type_text(text: str, delay: float = 0.0) -> None:
-    """Type a string. Uses keyboard.write() for fast input.
-
-    Args:
-        text: The string to type.
-        delay: Ignored, kept for compatibility.
-    """
+def type_text(text: str) -> None:
+    """Type a string. Uses keyboard.write() for fast input."""
     keyboard.write(text)
     logger.debug("typed: %s", text)

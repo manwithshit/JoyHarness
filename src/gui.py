@@ -7,12 +7,16 @@ Provides controls for:
 """
 
 import logging
+import threading
 
 import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
+from ttkbootstrap.constants import (
+    BOTH, DANGER, INFO, LEFT, RIGHT, SECONDARY, SUCCESS, X, W,
+)
 
+from .key_mapper import KeyMapper
 from .resizable import ResizableMixin
-from .window_switcher import KNOWN_APPS
+from .window_switcher import WindowCycler, KNOWN_APPS
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +26,10 @@ class MainWindow(ResizableMixin):
 
     def __init__(
         self,
-        key_mapper,
-        window_cycler,
-        config,
-        stop_event,
+        key_mapper: KeyMapper,
+        window_cycler: WindowCycler,
+        config: dict,
+        stop_event: threading.Event,
         on_minimize=None,
     ) -> None:
         self._key_mapper = key_mapper
@@ -219,7 +223,7 @@ class MainWindow(ResizableMixin):
         self._root.destroy()
 
     @property
-    def root(self):
+    def root(self) -> ttk.Window:
         """Get the tkinter root window."""
         return self._root
 

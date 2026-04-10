@@ -59,7 +59,7 @@ def find_joycon(joystick_index: int | None = None) -> pygame.joystick.Joystick |
         logger.info("  [%d] %s (buttons=%d, axes=%d)",
                      i, js.get_name(), js.get_numbuttons(), js.get_numaxes())
 
-        if "joy-con" in name or "joy con" in name or "switch" in name:
+        if "joy-con" in name or "joy con" in name or "switch" in name or "pro controller" in name:
             if "r" in name or count == 1:
                 logger.info("Auto-selected joystick [%d]: %s", i, js.get_name())
                 return js
@@ -148,6 +148,12 @@ def _calibrate_baseline(
 
     Should be called at startup with the stick at rest.
     """
+    num_axes = joystick.get_numaxes()
+    if axis_x >= num_axes or axis_y >= num_axes:
+        logger.warning("Axis index out of range (axes=%d, x=%d, y=%d), using (0,0) baseline",
+                       num_axes, axis_x, axis_y)
+        return (0.0, 0.0)
+
     clock = pygame.time.Clock()
     total_x = 0.0
     total_y = 0.0
@@ -176,7 +182,7 @@ def run_polling_loop(
         stop_event: Threading event to signal loop exit. None = run until Ctrl+C.
     """
     deadzone = config.get("deadzone", 0.15)
-    poll_interval = config.get("poll_interval", 0.01)
+    poll_interval = max(config.get("poll_interval", 0.01), 0.001)
     stick_mode = config.get("stick_mode", "4dir")
     axis_x = config.get("axis_x", AXIS_RSTICK_X)
     axis_y = config.get("axis_y", AXIS_RSTICK_Y)

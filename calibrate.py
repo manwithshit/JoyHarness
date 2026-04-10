@@ -30,18 +30,6 @@ CALIBRATION_BUTTONS = [
     "SR (侧边右)",
 ]
 
-# 需要校准的摇杆方向
-CALIBRATION_AXES = [
-    ("摇杆向右推", "expected: axis value > 0.5"),
-    ("摇杆向左推", "expected: axis value < -0.5"),
-    ("摇杆向上推", "expected: axis value < -0.5"),
-    ("摇杆向下推", "expected: axis value > 0.5"),
-]
-
-# 摇杆方向到轴索引的映射名称
-STICK_AXIS_NAMES = ["X+", "X-", "Y+", "Y-"]
-
-
 def wait_for_single_press(joystick) -> set[int]:
     """等待用户按下一个或多个按钮，返回按下的按钮索引集合。
 
@@ -53,10 +41,6 @@ def wait_for_single_press(joystick) -> set[int]:
         if joystick.get_button(i):
             initial.add(i)
 
-    prev: set[int] = initial.copy()
-    stable_count = 0
-    target_stable = 3  # 需要连续 3 帧稳定才确认
-
     while True:
         pygame.event.pump()
 
@@ -66,7 +50,6 @@ def wait_for_single_press(joystick) -> set[int]:
                 current.add(i)
 
         new_pressed = current - initial
-        new_released = prev - current
 
         # 检测到新按下且已稳定（松手了）
         if new_pressed:
@@ -82,7 +65,6 @@ def wait_for_single_press(joystick) -> set[int]:
                 time.sleep(0.01)
             return new_pressed
 
-        prev = current
         time.sleep(0.01)
 
 
@@ -318,7 +300,15 @@ def main():
     if count == 1:
         js_index = 0
     else:
-        js_index = int(input(f"\n请选择手柄编号 (0-{count-1}): "))
+        while True:
+            try:
+                raw = input(f"\n请选择手柄编号 (0-{count-1}): ")
+                js_index = int(raw)
+                if 0 <= js_index < count:
+                    break
+                print(f"  编号超出范围，请输入 0 到 {count-1} 之间的数字。")
+            except ValueError:
+                print("  请输入一个有效的数字。")
 
     joystick = pygame.joystick.Joystick(js_index)
     print(f"\n使用: {joystick.get_name()}")
