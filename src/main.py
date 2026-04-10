@@ -195,7 +195,7 @@ def main() -> None:
     poll_thread.start()
 
     # Create GUI and tray
-    gui = MainWindow(key_mapper, key_mapper._window_cycler, stop_event)
+    gui = MainWindow(key_mapper, key_mapper._window_cycler, config, stop_event)
     key_mapper.set_tk_root(gui.root)
 
     # Start tray icon in background thread

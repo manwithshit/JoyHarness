@@ -11,23 +11,26 @@ import logging
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 
+from .resizable import ResizableMixin
 from .window_switcher import KNOWN_APPS
 
 logger = logging.getLogger(__name__)
 
 
-class MainWindow:
+class MainWindow(ResizableMixin):
     """Main application window for the Joy-Con mapper."""
 
     def __init__(
         self,
         key_mapper,
         window_cycler,
+        config,
         stop_event,
         on_minimize=None,
     ) -> None:
         self._key_mapper = key_mapper
         self._window_cycler = window_cycler
+        self._config = config
         self._stop_event = stop_event
         self._on_minimize = on_minimize
 
@@ -35,9 +38,10 @@ class MainWindow:
             title="NS Joy-Con R 键盘映射器",
             themename="darkly",
             size=(340, 300),
-            resizable=(False, False),
+            resizable=(True, True),
         )
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
+        self._root.minsize(300, 260)
 
         # Remove native title bar for a clean dark look
         self._root.overrideredirect(True)
@@ -47,6 +51,7 @@ class MainWindow:
         self._app_vars: dict = {}
 
         self._build_ui()
+        self._setup_resize()
         self._center_window()
 
     def _build_ui(self) -> None:
@@ -124,15 +129,25 @@ class MainWindow:
         # Spacer
         ttk.Frame(main).pack(fill=BOTH, expand=True)
 
-        # Bottom: minimize button
-        minimize_btn = ttk.Button(
-            main,
+        # Bottom buttons
+        btn_frame = ttk.Frame(main)
+        btn_frame.pack(fill=X)
+
+        ttk.Button(
+            btn_frame,
+            text="⚙ 键位设置",
+            command=self._open_settings,
+            bootstyle=INFO,
+            width=12,
+        ).pack(side=LEFT)
+
+        ttk.Button(
+            btn_frame,
             text="最小化到托盘",
             command=self._on_minimize_click,
             bootstyle=SECONDARY,
-            width=16,
-        )
-        minimize_btn.pack(side=RIGHT)
+            width=12,
+        ).pack(side=RIGHT)
 
     def _center_window(self) -> None:
         """Center the window on screen."""
@@ -174,6 +189,11 @@ class MainWindow:
         self._root.withdraw()
         if self._on_minimize:
             self._on_minimize()
+
+    def _open_settings(self) -> None:
+        """Open the settings window."""
+        from .settings_window import SettingsWindow
+        SettingsWindow(self._root, self._key_mapper, self._config, self._window_cycler)
 
     def _on_close(self) -> None:
         """Handle window close — exit the program."""
