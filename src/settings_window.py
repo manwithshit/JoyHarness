@@ -6,22 +6,33 @@ from the window switch app list.
 
 import logging
 import ttkbootstrap as ttk
-from ttkbootstrap.constants import *
+from ttkbootstrap.constants import (
+    DANGER, DISABLED, INFO, LEFT, NORMAL, RIGHT, SECONDARY, SUCCESS,
+    WARNING, X, W, BOTH,
+)
 from ttkbootstrap.dialogs import Messagebox
 
+from .key_mapper import KeyMapper
 from .resizable import ResizableMixin
-from .window_switcher import KNOWN_APPS
+from .window_switcher import WindowCycler, KNOWN_APPS, set_known_apps
 
 logger = logging.getLogger(__name__)
 
 EDITABLE_ACTIONS = ("tap", "hold", "auto", "combination", "sequence", "window_switch")
-MAPPABLE_BUTTONS = ["A", "B", "X", "Y", "R", "ZR", "Plus", "Home", "RStick", "SL", "SR"]
+MAPPABLE_BUTTONS = ("A", "B", "X", "Y", "R", "ZR", "Plus", "Home", "RStick", "SL", "SR")
 
 
 class SettingsWindow(ResizableMixin):
     """Settings window for customizing button mappings and app list."""
 
-    def __init__(self, parent, key_mapper, config: dict, window_cycler, main_window=None) -> None:
+    def __init__(
+        self,
+        parent,
+        key_mapper: KeyMapper,
+        config: dict,
+        window_cycler: WindowCycler,
+        main_window=None,
+    ) -> None:
         self._key_mapper = key_mapper
         self._config = config
         self._window_cycler = window_cycler
@@ -78,21 +89,34 @@ class SettingsWindow(ResizableMixin):
         bottom = ttk.Frame(win, padding=(16, 10, 16, 12))
         bottom.pack(fill=X)
 
-        ttk.Button(bottom, text="恢复默认", command=self._reset_defaults, bootstyle=WARNING, width=10).pack(side=LEFT)
-        ttk.Button(bottom, text="取消", command=self._win.destroy, bootstyle=SECONDARY, width=8).pack(side=RIGHT, padx=(8, 0))
-        ttk.Button(bottom, text="应用", command=self._apply, bootstyle=SUCCESS, width=8).pack(side=RIGHT)
+        ttk.Button(
+            bottom, text="恢复默认",
+            command=self._reset_defaults, bootstyle=WARNING, width=10,
+        ).pack(side=LEFT)
+        ttk.Button(
+            bottom, text="取消",
+            command=self._win.destroy, bootstyle=SECONDARY, width=8,
+        ).pack(side=RIGHT, padx=(8, 0))
+        ttk.Button(
+            bottom, text="应用",
+            command=self._apply, bootstyle=SUCCESS, width=8,
+        ).pack(side=RIGHT)
 
-    # ────────────────────────────────────────
-    # Tab 1: Button mappings
-    # ────────────────────────────────────────
+    # --- Tab 1: Button mappings ---
 
     def _build_mapping_tab(self, parent: ttk.Frame) -> None:
         # Header
         header = ttk.Frame(parent)
         header.pack(fill=X, pady=(0, 4))
         ttk.Label(header, text="按钮", font=("Microsoft YaHei UI", 9, "bold"), width=8).pack(side=LEFT)
-        ttk.Label(header, text="动作类型", font=("Microsoft YaHei UI", 9, "bold"), width=14).pack(side=LEFT, padx=(8, 0))
-        ttk.Label(header, text="按键", font=("Microsoft YaHei UI", 9, "bold"), width=14).pack(side=LEFT, padx=(8, 0))
+        ttk.Label(
+            header, text="动作类型",
+            font=("Microsoft YaHei UI", 9, "bold"), width=14,
+        ).pack(side=LEFT, padx=(8, 0))
+        ttk.Label(
+            header, text="按键",
+            font=("Microsoft YaHei UI", 9, "bold"), width=14,
+        ).pack(side=LEFT, padx=(8, 0))
 
         ttk.Separator(parent).pack(fill=X, pady=(0, 4))
 
@@ -139,7 +163,6 @@ class SettingsWindow(ResizableMixin):
                     key_entry.configure(bootstyle=SECONDARY)
 
         action_cb.bind("<<ComboboxSelected>>", on_action_change)
-        action_cb.pack(side=LEFT, padx=(8, 0))
 
         if current_action == "window_switch":
             key_entry.configure(state=DISABLED)
@@ -157,9 +180,7 @@ class SettingsWindow(ResizableMixin):
             "key_entry": key_entry,
         }
 
-    # ────────────────────────────────────────
-    # Tab 2: Window switch apps
-    # ────────────────────────────────────────
+    # --- Tab 2: Window switch apps ---
 
     def _build_apps_tab(self, parent: ttk.Frame) -> None:
         ttk.Label(
@@ -171,8 +192,14 @@ class SettingsWindow(ResizableMixin):
         # Header
         header = ttk.Frame(parent)
         header.pack(fill=X, pady=(0, 4))
-        ttk.Label(header, text="应用名称", font=("Microsoft YaHei UI", 9, "bold"), width=18).pack(side=LEFT)
-        ttk.Label(header, text="EXE 名称", font=("Microsoft YaHei UI", 9, "bold"), width=20).pack(side=LEFT, padx=(8, 0))
+        ttk.Label(
+            header, text="应用名称",
+            font=("Microsoft YaHei UI", 9, "bold"), width=18,
+        ).pack(side=LEFT)
+        ttk.Label(
+            header, text="EXE 名称",
+            font=("Microsoft YaHei UI", 9, "bold"), width=20,
+        ).pack(side=LEFT, padx=(8, 0))
         # placeholder for delete column
         ttk.Label(header, text="  ", width=4).pack(side=LEFT)
 
@@ -231,9 +258,7 @@ class SettingsWindow(ResizableMixin):
             apps[name] = exe.lower()
         return apps, errors
 
-    # ────────────────────────────────────────
-    # Apply / Reset
-    # ────────────────────────────────────────
+    # --- Apply / Reset ---
 
     def _apply(self) -> None:
         errors = []
@@ -279,8 +304,7 @@ class SettingsWindow(ResizableMixin):
                 self._key_mapper._button_mappings[BUTTON_INDICES[btn_name]] = mapping
 
         # Apply app list
-        KNOWN_APPS.clear()
-        KNOWN_APPS.update(apps)
+        set_known_apps(apps)
         self._window_cycler.app_names = list(apps.values())
 
         # Refresh main window app checkboxes
@@ -330,9 +354,7 @@ class SettingsWindow(ResizableMixin):
         for name, exe in {"VS Code": "code.exe", "飞书": "feishu.exe"}.items():
             self._add_app_row(name, exe)
 
-    # ────────────────────────────────────────
-    # Window utilities
-    # ────────────────────────────────────────
+    # --- Window utilities ---
 
     def _center_on_parent(self, parent) -> None:
         self._win.update_idletasks()
@@ -345,4 +367,6 @@ class SettingsWindow(ResizableMixin):
         self._drag_x, self._drag_y = event.x, event.y
 
     def _do_drag(self, event) -> None:
-        self._win.geometry(f"+{self._win.winfo_x() + event.x - self._drag_x}+{self._win.winfo_y() + event.y - self._drag_y}")
+        x = self._win.winfo_x() + event.x - self._drag_x
+        y = self._win.winfo_y() + event.y - self._drag_y
+        self._win.geometry(f"+{x}+{y}")

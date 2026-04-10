@@ -4,11 +4,10 @@ Loads JSON config files, validates key names and action types,
 merges user config with built-in defaults, and saves config to disk.
 """
 
+import copy
 import json
 import logging
 from pathlib import Path
-
-import keyboard
 
 from .constants import (
     DEFAULT_CONFIG,
@@ -39,7 +38,7 @@ def load_config(path: str | None = None) -> dict:
     """
     if path is None:
         logger.info("Using built-in default configuration")
-        return DEFAULT_CONFIG.copy()
+        return copy.deepcopy(DEFAULT_CONFIG)
 
     config_path = Path(path)
     if not config_path.exists():
@@ -65,7 +64,7 @@ def merge_with_defaults(user_config: dict) -> dict:
     Deep-merges the mappings section: user-defined buttons/directions
     override defaults, unspecified ones are kept from defaults.
     """
-    result = DEFAULT_CONFIG.copy()
+    result = copy.deepcopy(DEFAULT_CONFIG)
 
     # Override top-level settings
     for key in ("version", "description", "deadzone", "poll_interval", "stick_mode"):
@@ -115,6 +114,10 @@ def validate_config(config: dict) -> list[str]:
     stick_mode = config.get("stick_mode", "4dir")
     if stick_mode not in ("4dir", "8dir"):
         errors.append(f"stick_mode must be '4dir' or '8dir', got '{stick_mode}'")
+
+    poll_interval = config.get("poll_interval", 0.01)
+    if not isinstance(poll_interval, (int, float)) or poll_interval <= 0:
+        errors.append(f"poll_interval must be a positive number, got {poll_interval}")
 
     mappings = config.get("mappings", {})
 
@@ -171,6 +174,7 @@ def _validate_mapping_entry(name: str, mapping: dict) -> list[str]:
 
 def _is_valid_key(key_name: str) -> bool:
     """Check if a key name is recognized by the keyboard library."""
+    import keyboard
     try:
         codes = keyboard.key_to_scan_codes(key_name)
         return len(codes) > 0

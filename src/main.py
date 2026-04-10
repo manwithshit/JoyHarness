@@ -4,9 +4,10 @@ Maps Nintendo Switch Joy-Con R controller inputs to keyboard shortcuts.
 Supports configurable key mappings via JSON config files.
 
 Usage:
-    python src/main.py                    # Run with default mappings
-    python src/main.py --discover         # Calibrate button indices
-    python src/main.py --config my.json   # Use custom config
+    python -m src                    # Run with default mappings
+    python src/main.py               # Also supported
+    python -m src --discover         # Calibrate button indices
+    python -m src --config my.json   # Use custom config
 """
 
 import argparse
@@ -16,18 +17,23 @@ import sys
 import threading
 from pathlib import Path
 
-# Allow running as `python src/main.py` or `python -m src.main`
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-logger = logging.getLogger(__name__)
+# Ensure the project root is on sys.path so that `src` is importable
+# as a package when running `python src/main.py` directly.
+if __package__ is None:
+    _project_root = str(Path(__file__).resolve().parent.parent)
+    if _project_root not in sys.path:
+        sys.path.insert(0, _project_root)
+    __package__ = "src"
 
 import pygame
 
-from src.config_loader import load_config, USER_CONFIG_PATH
-from src.gui import MainWindow
-from src.joycon_reader import find_joycon, run_discover_mode, run_polling_loop, wait_for_reconnection
-from src.key_mapper import KeyMapper
-from src.tray_icon import create_tray_icon, run_tray
+from .config_loader import load_config, USER_CONFIG_PATH
+from .gui import MainWindow
+from .joycon_reader import find_joycon, run_discover_mode, run_polling_loop, wait_for_reconnection
+from .key_mapper import KeyMapper
+from .tray_icon import create_tray_icon, run_tray
+
+logger = logging.getLogger(__name__)
 
 
 def is_admin() -> bool:
@@ -114,6 +120,11 @@ Examples:
         help="Enable debug logging",
     )
     parser.add_argument(
+        "--version",
+        action="version",
+        version=f"NSJC {__import__('src.constants', fromlist=['__version__']).__version__}",
+    )
+    parser.add_argument(
         "--no-admin-warn",
         action="store_true",
         help="Suppress administrator privilege warning",
@@ -129,10 +140,17 @@ def main() -> None:
 
     # Setup logging
     log_level = logging.DEBUG if args.verbose else logging.INFO
+    handlers: list[logging.Handler] = [
+        logging.StreamHandler(),
+    ]
+    if args.verbose:
+        log_path = Path(__file__).resolve().parent.parent / "nsjc.log"
+        handlers.append(logging.FileHandler(log_path, encoding="utf-8"))
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S",
+        handlers=handlers,
     )
 
     # Admin check
@@ -187,11 +205,10 @@ def main() -> None:
     print(f"Deadzone: {config['deadzone']}, Stick mode: {config['stick_mode']}")
 
     # Restore KNOWN_APPS from saved config
-    from src.window_switcher import KNOWN_APPS
+    from .window_switcher import set_known_apps
     known_apps = config.get("known_apps")
     if known_apps:
-        KNOWN_APPS.clear()
-        KNOWN_APPS.update(known_apps)
+        set_known_apps(known_apps)
 
     key_mapper = KeyMapper(config)
     stop_event = threading.Event()

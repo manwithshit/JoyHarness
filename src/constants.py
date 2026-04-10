@@ -97,3 +97,5 @@ DEFAULT_CONFIG: dict = {
 }
 
 VALID_ACTIONS = ("tap", "hold", "auto", "combination", "sequence", "window_switch", "macro")
+
+__version__ = "1.0.0"

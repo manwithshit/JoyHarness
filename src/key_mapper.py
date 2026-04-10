@@ -16,7 +16,7 @@ import logging
 from . import keyboard_output
 from .constants import BUTTON_INDICES
 from .switcher_overlay import SwitcherOverlay
-from .window_switcher import WindowCycler, get_foreground_process_name, find_windows
+from .window_switcher import WindowCycler, get_foreground_process_name, get_foreground_hwnd, find_windows
 
 logger = logging.getLogger(__name__)
 
@@ -82,21 +82,20 @@ class KeyMapper:
             self._long_threshold,
         )
 
-    def _on_overlay_select(self, window_info) -> None:
+    def _on_overlay_select(self, window_info: "WindowInfo") -> None:
         """Callback when overlay selection is confirmed."""
         from .window_switcher import switch_to_window
         switch_to_window(window_info.hwnd)
 
-    def set_tk_root(self, root) -> None:
+    def set_tk_root(self, root: "tk.Tk") -> None:
         """Set the tkinter root for overlay creation. Call from main thread."""
         import tkinter as tk
         if isinstance(root, tk.Tk) and self._switcher_overlay is None:
             self._switcher_overlay = SwitcherOverlay(root, on_select=self._on_overlay_select)
 
-    def _find_current_window_index(self, windows: list) -> int:
+    def _find_current_window_index(self, windows: list["WindowInfo"]) -> int:
         """Find the index of the current foreground window in the list."""
-        import ctypes
-        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        hwnd = get_foreground_hwnd()
         for i, w in enumerate(windows):
             if w.hwnd == hwnd:
                 return i
