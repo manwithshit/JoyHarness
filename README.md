@@ -51,6 +51,9 @@ python src/main.py --discover            # 调试模式：显示按钮/轴原始
 python src/main.py --deadzone 0.2        # 覆盖死区值
 python src/main.py --list-controls       # 列出当前映射
 python src/main.py --verbose             # 调试日志
+python src/main.py --joystick 0          # 指定手柄设备索引
+python src/main.py --version             # 显示版本号
+python src/main.py --no-admin-warn       # 关闭管理员权限警告
 ```
 
 ### 校准工具
@@ -72,6 +75,7 @@ python calibrate.py
 | `deadzone` | 摇杆死区 (0.0 - 0.99) | 0.2 |
 | `poll_interval` | 轮询间隔（秒） | 0.01 |
 | `stick_mode` | 摇杆方向模式 | "4dir" |
+| `switch_scroll_interval` | 窗口切换滚动间隔（毫秒） | 400 |
 | `mappings.buttons` | 按键映射 | 见 default.json |
 | `mappings.stick_directions` | 摇杆方向映射 | 见 default.json |
 
@@ -89,6 +93,8 @@ python calibrate.py
 
 ```
 src/
+├── __init__.py          # 包初始化
+├── __main__.py          # python -m src 入口
 ├── main.py              # CLI 入口
 ├── config_loader.py     # JSON 配置加载/验证/保存
 ├── constants.py         # 硬件常量、默认映射
