@@ -34,11 +34,25 @@ def release(key: str) -> None:
 
 
 def tap(key: str, duration: float = 0.02) -> None:
-    """Press and release a key immediately."""
+    """Press and release a key immediately.
+
+    If the key is currently held (tracked in _held_keys), temporarily
+    release it, re-tap, then restore the held state.
+    """
+    was_held = key in _held_keys
+    if was_held:
+        keyboard.release(key)
+        _held_keys.discard(key)
+
     keyboard.press(key)
     time.sleep(duration)
     keyboard.release(key)
-    logger.debug("tapped: %s", key)
+
+    if was_held:
+        keyboard.press(key)
+        _held_keys.add(key)
+
+    logger.debug("tapped: %s (was_held=%s)", key, was_held)
 
 
 def send_combination(keys: list[str], hold: float = 0.05) -> None:
@@ -46,10 +60,20 @@ def send_combination(keys: list[str], hold: float = 0.05) -> None:
 
     Example: send_combination(["ctrl", "c"]) → Ctrl+C
 
+    Keys that are currently held via press() are temporarily released,
+    then restored after the combination completes, to avoid corrupting
+    the _held_keys tracking set.
+
     Args:
         keys: Key names in press order.
         hold: Duration to hold all keys before releasing (seconds).
     """
+    # Save and release any currently-held keys in this combination
+    held_in_combo = [k for k in keys if k in _held_keys]
+    for k in held_in_combo:
+        keyboard.release(k)
+        _held_keys.discard(k)
+
     for key in keys:
         keyboard.press(key)
         time.sleep(0.01)
@@ -58,6 +82,11 @@ def send_combination(keys: list[str], hold: float = 0.05) -> None:
 
     for key in reversed(keys):
         keyboard.release(key)
+
+    # Restore previously held keys
+    for k in held_in_combo:
+        keyboard.press(k)
+        _held_keys.add(k)
 
     logger.debug("combination: %s", "+".join(keys))
 

@@ -15,3 +15,4 @@ calibration_result.json
 .claude/
 config/user.json
 nsjc.log
+scripts/

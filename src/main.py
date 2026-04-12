@@ -213,6 +213,10 @@ def main() -> None:
     key_mapper = KeyMapper(config)
     stop_event = threading.Event()
 
+    # Initialize WindowCycler with all apps from config (not just code.exe default)
+    if known_apps:
+        key_mapper._window_cycler.app_names = list(known_apps.values())
+
     # Start polling loop in background thread
     poll_thread = threading.Thread(
         target=_run_polling,

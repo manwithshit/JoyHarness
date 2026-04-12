@@ -181,7 +181,7 @@ def run_polling_loop(
         config: Complete configuration dict.
         stop_event: Threading event to signal loop exit. None = run until Ctrl+C.
     """
-    deadzone = config.get("deadzone", 0.15)
+    deadzone = config.get("deadzone", 0.2)
     poll_interval = max(config.get("poll_interval", 0.01), 0.001)
     stick_mode = config.get("stick_mode", "4dir")
     axis_x = config.get("axis_x", AXIS_RSTICK_X)
