@@ -72,7 +72,7 @@ class MainWindow(ResizableMixin):
         # Title text in title bar
         title_text = ttk.Label(
             titlebar,
-            text="  🎮 NS Joy-Con R",
+            text="  🎮 JoyHarness",
             font=("Microsoft YaHei UI", 12, "bold"),
             bootstyle=INFO,
         )
@@ -135,7 +135,7 @@ class MainWindow(ResizableMixin):
             battery_frame,
             text="L: 检测中...",
             font=("Microsoft YaHei UI", 9),
-            bootstyle=SECONDARY,
+            bootstyle=LIGHT,
         )
         self._battery_label_l.pack(side=LEFT)
 
@@ -143,7 +143,7 @@ class MainWindow(ResizableMixin):
             battery_frame,
             text="R: 检测中...",
             font=("Microsoft YaHei UI", 9),
-            bootstyle=SECONDARY,
+            bootstyle=LIGHT,
         )
         self._battery_label_r.pack(side=RIGHT)
 
