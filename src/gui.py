@@ -229,18 +229,25 @@ class MainWindow(ResizableMixin):
         self._build_app_checkboxes()
 
     def update_connection_mode(self, mode: str) -> None:
-        """Update the displayed connection mode (e.g. after reconnection)."""
+        """Update the displayed connection mode (e.g. after reconnection).
+
+        Thread-safe: schedules the update on the tkinter main thread.
+        """
         from .constants import MODE_LABELS
         self._connection_mode = mode
         mode_label = MODE_LABELS.get(mode, mode)
-        self._root.title(f"JoyHarness [{mode_label}]")
-        # Update the title bar label
-        for widget in self._root.winfo_children():
-            if isinstance(widget, ttk.Frame):
-                for child in widget.winfo_children():
-                    if isinstance(child, ttk.Label) and "JoyHarness" in str(child.cget("text")):
-                        child.configure(text=f"  JoyHarness [{mode_label}]")
-                        return
+
+        def _do_update():
+            self._root.title(f"JoyHarness [{mode_label}]")
+            # Update the title bar label
+            for widget in self._root.winfo_children():
+                if isinstance(widget, ttk.Frame):
+                    for child in widget.winfo_children():
+                        if isinstance(child, ttk.Label) and "JoyHarness" in str(child.cget("text")):
+                            child.configure(text=f"  JoyHarness [{mode_label}]")
+                            return
+
+        self._root.after(0, _do_update)
 
     def _on_app_toggle(self) -> None:
         """Handle app selection change."""

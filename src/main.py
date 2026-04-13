@@ -244,25 +244,25 @@ def main() -> None:
     if known_apps:
         key_mapper._window_cycler.app_names = list(known_apps.values())
 
-    # Start polling loop in background thread
-    poll_thread = threading.Thread(
-        target=_run_polling,
-        args=(js, key_mapper, config, stop_event),
-        daemon=True,
-    )
-    poll_thread.start()
-
     # Start battery reader
     battery_reader = BatteryReader(stop_event)
     battery_reader.start()
 
-    # Create GUI and tray
+    # Create GUI first so we can pass its mode-change callback to polling loop
     gui = MainWindow(
         key_mapper, key_mapper._window_cycler, config, stop_event,
         connection_mode=connection_mode,
         battery_reader=battery_reader,
     )
     key_mapper.set_tk_root(gui.root)
+
+    # Start polling loop in background thread (after GUI so callback is available)
+    poll_thread = threading.Thread(
+        target=_run_polling,
+        args=(js, key_mapper, config, stop_event, gui.update_connection_mode),
+        daemon=True,
+    )
+    poll_thread.start()
 
     # Start tray icon in background thread
     icon = create_tray_icon(stop_event, on_show_window=gui.show)
@@ -289,10 +289,11 @@ def _run_polling(
     key_mapper: KeyMapper,
     config: dict,
     stop_event: threading.Event,
+    on_mode_change=None,
 ) -> None:
     """Run polling loop in a background thread, handling exceptions."""
     try:
-        run_polling_loop(joystick, key_mapper, config, stop_event)
+        run_polling_loop(joystick, key_mapper, config, stop_event, on_mode_change=on_mode_change)
     except Exception:
         logger.exception("Polling thread error")
 

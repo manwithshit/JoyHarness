@@ -225,6 +225,7 @@ def run_polling_loop(
     key_mapper: KeyMapper,
     config: dict,
     stop_event: threading.Event | None = None,
+    on_mode_change: callable = None,
 ) -> None:
     """Main polling loop: read controller state and dispatch to key_mapper.
 
@@ -234,6 +235,8 @@ def run_polling_loop(
         config: Complete configuration dict.
         stop_event: Threading event to signal loop exit. None = run until Ctrl+C.
     """
+    from .config_loader import get_profile
+
     deadzone = config.get("deadzone", 0.2)
     poll_interval = max(config.get("poll_interval", 0.01), 0.001)
     stick_mode = config.get("stick_mode", "4dir")
@@ -245,6 +248,11 @@ def run_polling_loop(
     prev_direction: str | None = None
     center_count: int = 0
 
+    # Connection mode tracking — check every 5 seconds
+    current_mode = config.get("active_profile", "single_right")
+    mode_check_interval = 5.0  # seconds
+    last_mode_check = time.monotonic()
+
     logger.info("Polling started (deadzone=%.2f, interval=%.0fms, mode=%s)",
                 deadzone, poll_interval * 1000, stick_mode)
 
@@ -254,7 +262,46 @@ def run_polling_loop(
 
     try:
         while not (stop_event and stop_event.is_set()):
-            pygame.event.pump()
+            try:
+                pygame.event.pump()
+            except pygame.error:
+                # Joystick was disconnected
+                logger.warning("Joystick disconnected, attempting reconnection...")
+                key_mapper.release_all()
+                from . import keyboard_output
+                keyboard_output.release_all()
+
+                js = wait_for_reconnection()
+                if js is None or (stop_event and stop_event.is_set()):
+                    break
+
+                # Re-initialize with the new joystick
+                joystick = js
+                prev_buttons = set()
+                prev_direction = None
+                center_count = 0
+                baseline_x, baseline_y = _calibrate_baseline(joystick, axis_x, axis_y)
+                logger.info("Reconnected: %s, baseline=(%.4f, %.4f)",
+                            js.get_name(), baseline_x, baseline_y)
+
+                # Re-detect connection mode after reconnection
+                try:
+                    detected_mode = detect_connection_mode()
+                    if detected_mode != current_mode:
+                        logger.info("Connection mode changed after reconnect: %s → %s",
+                                    current_mode, detected_mode)
+                        profile = get_profile(config, detected_mode)
+                        profile_mappings = profile.get("mappings", config.get("mappings", {}))
+                        config["mappings"] = profile_mappings
+                        config["active_profile"] = detected_mode
+                        key_mapper.switch_profile(config, detected_mode)
+                        current_mode = detected_mode
+                        if on_mode_change:
+                            on_mode_change(detected_mode)
+                except Exception:
+                    logger.debug("Mode check after reconnect failed", exc_info=True)
+
+                continue
 
             # --- Button polling ---
             current_buttons: set[int] = set()
@@ -289,6 +336,25 @@ def run_polling_loop(
                     center_count = 0
                     key_mapper.stick_direction(direction)
                     prev_direction = direction
+
+            # Periodic connection mode check (detect Joy-Con hot-plug changes)
+            now = time.monotonic()
+            if now - last_mode_check >= mode_check_interval:
+                last_mode_check = now
+                try:
+                    detected_mode = detect_connection_mode()
+                    if detected_mode != current_mode:
+                        logger.info("Connection mode changed: %s → %s", current_mode, detected_mode)
+                        profile = get_profile(config, detected_mode)
+                        profile_mappings = profile.get("mappings", config.get("mappings", {}))
+                        config["mappings"] = profile_mappings
+                        config["active_profile"] = detected_mode
+                        key_mapper.switch_profile(config, detected_mode)
+                        current_mode = detected_mode
+                        if on_mode_change:
+                            on_mode_change(detected_mode)
+                except Exception:
+                    logger.debug("Connection mode check failed", exc_info=True)
 
             # Process auto-action long press detection
             key_mapper.poll()
