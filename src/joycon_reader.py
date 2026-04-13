@@ -28,7 +28,7 @@ RECONNECT_INTERVAL = 2.0
 
 
 def find_joycon(joystick_index: int | None = None) -> pygame.joystick.Joystick | None:
-    """Find and return a Joy-Con R joystick instance.
+    """Find and return a Joy-Con joystick instance.
 
     Args:
         joystick_index: Specific device index to use. None for auto-detection.
@@ -52,7 +52,7 @@ def find_joycon(joystick_index: int | None = None) -> pygame.joystick.Joystick |
         logger.error("Joystick index %d out of range (0-%d)", joystick_index, count - 1)
         return None
 
-    # Auto-detect: look for Joy-Con in device names
+    # Auto-detect: look for Joy-Con in device names (accept both L and R)
     for i in range(count):
         js = pygame.joystick.Joystick(i)
         name = js.get_name().lower()
@@ -60,9 +60,8 @@ def find_joycon(joystick_index: int | None = None) -> pygame.joystick.Joystick |
                      i, js.get_name(), js.get_numbuttons(), js.get_numaxes())
 
         if "joy-con" in name or "joy con" in name or "switch" in name or "pro controller" in name:
-            if "r" in name or count == 1:
-                logger.info("Auto-selected joystick [%d]: %s", i, js.get_name())
-                return js
+            logger.info("Auto-selected joystick [%d]: %s", i, js.get_name())
+            return js
 
     # Fallback: if only one joystick, use it
     if count == 1:
@@ -72,6 +71,60 @@ def find_joycon(joystick_index: int | None = None) -> pygame.joystick.Joystick |
 
     logger.warning("No Joy-Con detected among %d joysticks", count)
     return None
+
+
+def detect_connection_mode() -> str:
+    """Detect the Joy-Con connection mode from connected joysticks.
+
+    Scans all connected pygame joysticks and determines whether only a
+    left Joy-Con, only a right Joy-Con, or both (dual/combined) are connected.
+
+    Returns:
+        One of "single_left", "single_right", or "dual".
+    """
+    count = pygame.joystick.get_count()
+
+    if count == 0:
+        return "single_right"
+
+    has_left = False
+    has_right = False
+
+    for i in range(count):
+        js = pygame.joystick.Joystick(i)
+        name = js.get_name().lower()
+
+        # Skip non-Joy-Con devices
+        if not any(kw in name for kw in ("joy-con", "joy con", "switch", "pro controller")):
+            continue
+
+        # Check for combined device (contains both "l" and "r")
+        if "l" in name and "r" in name:
+            logger.info("Detected combined Joy-Con device: %s", js.get_name())
+            return "dual"
+
+        if "l" in name:
+            has_left = True
+        elif "r" in name:
+            has_right = True
+        else:
+            # Unidentified side — check number of buttons as heuristic
+            # Combined devices typically have 20+ buttons
+            if js.get_numbuttons() >= 18:
+                logger.info("Detected combined Joy-Con device (high button count): %s", js.get_name())
+                return "dual"
+            # Default to right if single device
+            has_right = True
+
+    if has_left and has_right:
+        logger.info("Detected both L and R Joy-Cons (separate devices)")
+        return "dual"
+    elif has_left:
+        logger.info("Detected single left Joy-Con")
+        return "single_left"
+    else:
+        logger.info("Detected single right Joy-Con")
+        return "single_right"
 
 
 def run_discover_mode(joystick_index: int | None = None) -> None:

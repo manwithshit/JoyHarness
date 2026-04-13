@@ -14,7 +14,7 @@ import time
 import logging
 
 from . import keyboard_output
-from .constants import BUTTON_INDICES
+from .constants import get_button_indices, get_button_names
 from .switcher_overlay import SwitcherOverlay
 from .window_switcher import WindowCycler, get_foreground_process_name, get_foreground_hwnd, find_windows
 
@@ -27,16 +27,20 @@ LONG_PRESS_THRESHOLD = 0.25
 class KeyMapper:
     """Maps controller events to keyboard actions using a configuration dict."""
 
-    def __init__(self, config: dict) -> None:
-        """Initialize with a validated config dict."""
+    def __init__(self, config: dict, mode: str = "single_right") -> None:
+        """Initialize with a validated config dict and connection mode."""
+        self._mode = mode
+        self._button_indices = get_button_indices(mode)
+        self._button_names = get_button_names(mode)
+
         mappings = config.get("mappings", {})
         long_threshold = config.get("long_press_threshold", LONG_PRESS_THRESHOLD)
 
         # Build button index → mapping dict
         self._button_mappings: dict[int, dict] = {}
         for btn_name, mapping in mappings.get("buttons", {}).items():
-            if btn_name in BUTTON_INDICES:
-                self._button_mappings[BUTTON_INDICES[btn_name]] = mapping
+            if btn_name in self._button_indices:
+                self._button_mappings[self._button_indices[btn_name]] = mapping
 
         # Build direction → mapping dict
         self._direction_mappings: dict[str, dict] = {}
@@ -108,7 +112,7 @@ class KeyMapper:
             return
 
         action = mapping["action"]
-        btn_name = _button_label(button_index)
+        btn_name = _button_label(button_index, self._mode)
 
         if action == "hold":
             key = mapping["key"]
@@ -166,7 +170,7 @@ class KeyMapper:
 
     def button_up(self, button_index: int) -> None:
         """Handle a button release event."""
-        btn_name = _button_label(button_index)
+        btn_name = _button_label(button_index, self._mode)
 
         # Handle sequence release (reverse order)
         if button_index in self._active_sequences:
@@ -203,7 +207,7 @@ class KeyMapper:
         # Handle window_switch release
         if self._ws_held:
             self._ws_held = False
-            btn_name = _button_label(button_index)
+            btn_name = _button_label(button_index, self._mode)
 
             if self._ws_overlay_active and self._switcher_overlay:
                 # Long press: select the highlighted window and hide overlay
@@ -235,7 +239,7 @@ class KeyMapper:
             if now - press_time >= self._long_threshold:
                 keyboard_output.press(key)
                 self._active_holds[btn_idx] = key
-                btn_name = _button_label(btn_idx)
+                btn_name = _button_label(btn_idx, self._mode)
                 logger.debug("auto HOLD [%s] → %s (after %.0fms)",
                              btn_name, key, (now - press_time) * 1000)
                 del self._auto_pending[btn_idx]
@@ -249,7 +253,7 @@ class KeyMapper:
                 for key in info["keys"]:
                     keyboard_output.tap(key)
                 info["last_time"] = now
-                btn_name = _button_label(btn_idx)
+                btn_name = _button_label(btn_idx, self._mode)
                 logger.debug("sequence repeat [%s] → %s", btn_name, "+".join(info["keys"]))
 
         # Stick direction repeat (e.g., arrow key every 100ms while held)
@@ -323,6 +327,33 @@ class KeyMapper:
             return
         self._release_stick_auto()
         logger.debug("stick centered")
+
+    def switch_profile(self, config: dict, mode: str) -> None:
+        """Switch to a different button mapping profile at runtime.
+
+        Releases all held keys first, then rebuilds mappings from the
+        profile for the given connection mode.
+        """
+        self.release_all()
+        self._mode = mode
+        self._button_indices = get_button_indices(mode)
+        self._button_names = get_button_names(mode)
+
+        mappings = config.get("mappings", {})
+
+        self._button_mappings.clear()
+        for btn_name, mapping in mappings.get("buttons", {}).items():
+            if btn_name in self._button_indices:
+                self._button_mappings[self._button_indices[btn_name]] = mapping
+
+        self._direction_mappings.clear()
+        for direction, mapping in mappings.get("stick_directions", {}).items():
+            self._direction_mappings[direction] = mapping
+
+        logger.info(
+            "Switched to profile '%s': %d button mappings, %d direction mappings",
+            mode, len(self._button_mappings), len(self._direction_mappings),
+        )
 
     def release_all(self) -> None:
         """Release all currently held keys and cancel pending auto actions."""
@@ -398,7 +429,6 @@ class KeyMapper:
                                btn_name, step_type, i)
 
 
-def _button_label(button_index: int) -> str:
+def _button_label(button_index: int, mode: str = "single_right") -> str:
     """Get human-readable name for a button index."""
-    from .constants import BUTTON_NAMES
-    return BUTTON_NAMES.get(button_index, f"BTN_{button_index}")
+    return get_button_names(mode).get(button_index, f"BTN_{button_index}")

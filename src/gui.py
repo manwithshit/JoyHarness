@@ -33,6 +33,7 @@ class MainWindow(ResizableMixin):
         stop_event: threading.Event,
         on_minimize=None,
         battery_reader: BatteryReader | None = None,
+        connection_mode: str = "single_right",
     ) -> None:
         self._key_mapper = key_mapper
         self._window_cycler = window_cycler
@@ -40,6 +41,7 @@ class MainWindow(ResizableMixin):
         self._stop_event = stop_event
         self._on_minimize = on_minimize
         self._battery_reader = battery_reader
+        self._connection_mode = connection_mode
 
         self._root = ttk.Window(
             title="NS Joy-Con R 键盘映射器",
@@ -65,6 +67,9 @@ class MainWindow(ResizableMixin):
         """Build the UI layout."""
         root = self._root
 
+        from .constants import MODE_LABELS
+        mode_label = MODE_LABELS.get(self._connection_mode, self._connection_mode)
+
         # Custom title bar (draggable, with close & minimize buttons)
         titlebar = ttk.Frame(root, cursor="fleur")
         titlebar.pack(fill=X)
@@ -72,7 +77,7 @@ class MainWindow(ResizableMixin):
         # Title text in title bar
         title_text = ttk.Label(
             titlebar,
-            text="  🎮 JoyHarness",
+            text=f"  JoyHarness [{mode_label}]",
             font=("Microsoft YaHei UI", 12, "bold"),
             bootstyle=INFO,
         )
@@ -223,6 +228,20 @@ class MainWindow(ResizableMixin):
         """Refresh app checkboxes (call after settings change)."""
         self._build_app_checkboxes()
 
+    def update_connection_mode(self, mode: str) -> None:
+        """Update the displayed connection mode (e.g. after reconnection)."""
+        from .constants import MODE_LABELS
+        self._connection_mode = mode
+        mode_label = MODE_LABELS.get(mode, mode)
+        self._root.title(f"JoyHarness [{mode_label}]")
+        # Update the title bar label
+        for widget in self._root.winfo_children():
+            if isinstance(widget, ttk.Frame):
+                for child in widget.winfo_children():
+                    if isinstance(child, ttk.Label) and "JoyHarness" in str(child.cget("text")):
+                        child.configure(text=f"  JoyHarness [{mode_label}]")
+                        return
+
     def _on_app_toggle(self) -> None:
         """Handle app selection change."""
         selected = []
@@ -272,7 +291,10 @@ class MainWindow(ResizableMixin):
     def _open_settings(self) -> None:
         """Open the settings window."""
         from .settings_window import SettingsWindow
-        SettingsWindow(self._root, self._key_mapper, self._config, self._window_cycler, main_window=self)
+        SettingsWindow(
+            self._root, self._key_mapper, self._config, self._window_cycler,
+            main_window=self, mode=self._connection_mode,
+        )
 
     def _on_close(self) -> None:
         """Handle window close — exit the program."""

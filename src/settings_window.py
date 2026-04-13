@@ -32,11 +32,13 @@ class SettingsWindow(ResizableMixin):
         config: dict,
         window_cycler: WindowCycler,
         main_window=None,
+        mode: str = "single_right",
     ) -> None:
         self._key_mapper = key_mapper
         self._config = config
         self._window_cycler = window_cycler
         self._main_window = main_window
+        self._mode = mode
         self._rows: dict[str, dict] = {}
         self._app_rows: list[dict] = []
 
@@ -105,6 +107,8 @@ class SettingsWindow(ResizableMixin):
     # --- Tab 1: Button mappings ---
 
     def _build_mapping_tab(self, parent: ttk.Frame) -> None:
+        from .constants import MAPPABLE_BUTTONS_BY_MODE, MODE_LABELS
+
         # Header
         header = ttk.Frame(parent)
         header.pack(fill=X, pady=(0, 4))
@@ -118,13 +122,21 @@ class SettingsWindow(ResizableMixin):
             font=("Microsoft YaHei UI", 9, "bold"), width=14,
         ).pack(side=LEFT, padx=(8, 0))
 
+        # Show which profile is being edited
+        profile_label = MODE_LABELS.get(self._mode, self._mode)
+        ttk.Label(
+            header, text=f"[{profile_label}]",
+            font=("Microsoft YaHei UI", 9), bootstyle="info",
+        ).pack(side=RIGHT)
+
         ttk.Separator(parent).pack(fill=X, pady=(0, 4))
 
         rows_frame = ttk.Frame(parent)
         rows_frame.pack(fill=BOTH, expand=True)
 
+        mappable_buttons = MAPPABLE_BUTTONS_BY_MODE.get(self._mode, ())
         mappings = self._config.get("mappings", {}).get("buttons", {})
-        for btn_name in MAPPABLE_BUTTONS:
+        for btn_name in mappable_buttons:
             self._add_button_row(rows_frame, btn_name, mappings.get(btn_name, {}))
 
     def _add_button_row(self, parent: ttk.Frame, btn_name: str, mapping: dict) -> None:
@@ -295,13 +307,20 @@ class SettingsWindow(ResizableMixin):
             Messagebox.show_warning("\n".join(errors), title="配置错误", parent=self._win)
             return
 
-        # Apply button mappings
+        # Apply button mappings to current profile
         self._config["mappings"]["buttons"].update(new_mappings)
-        from .constants import BUTTON_INDICES
-        self._key_mapper._button_mappings.clear()
-        for btn_name, mapping in self._config["mappings"]["buttons"].items():
-            if btn_name in BUTTON_INDICES:
-                self._key_mapper._button_mappings[BUTTON_INDICES[btn_name]] = mapping
+
+        # Also update profiles dict for persistence
+        profiles = self._config.get("profiles", {})
+        if self._mode in profiles:
+            profiles[self._mode]["mappings"]["buttons"].update(new_mappings)
+            # Sync stick_directions as well
+            stick_dirs = self._config["mappings"].get("stick_directions", {})
+            if stick_dirs:
+                profiles[self._mode]["mappings"]["stick_directions"] = stick_dirs
+
+        # Rebuild key_mapper with switch_profile
+        self._key_mapper.switch_profile(self._config, self._mode)
 
         # Apply app list
         set_known_apps(apps)
@@ -320,10 +339,12 @@ class SettingsWindow(ResizableMixin):
         self._win.destroy()
 
     def _reset_defaults(self) -> None:
-        from .constants import DEFAULT_MAPPINGS
+        from .constants import DEFAULT_CONFIGS, MAPPABLE_BUTTONS_BY_MODE
 
-        defaults = DEFAULT_MAPPINGS.get("buttons", {})
-        for btn_name in MAPPABLE_BUTTONS:
+        default_cfg = DEFAULT_CONFIGS.get(self._mode, {})
+        defaults = default_cfg.get("mappings", {}).get("buttons", {})
+        mappable_buttons = MAPPABLE_BUTTONS_BY_MODE.get(self._mode, MAPPABLE_BUTTONS)
+        for btn_name in mappable_buttons:
             mapping = defaults.get(btn_name, {})
             widgets = self._rows.get(btn_name)
             if not widgets:

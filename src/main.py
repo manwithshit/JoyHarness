@@ -28,9 +28,9 @@ if __package__ is None:
 import pygame
 
 from .battery_reader import BatteryReader
-from .config_loader import load_config, USER_CONFIG_PATH
+from .config_loader import load_config, get_profile, USER_CONFIG_PATH
 from .gui import MainWindow
-from .joycon_reader import find_joycon, run_discover_mode, run_polling_loop, wait_for_reconnection
+from .joycon_reader import find_joycon, detect_connection_mode, run_discover_mode, run_polling_loop, wait_for_reconnection
 from .key_mapper import KeyMapper
 from .tray_icon import create_tray_icon, run_tray
 
@@ -47,6 +47,12 @@ def is_admin() -> bool:
 
 def list_controls(config: dict) -> None:
     """Print all configured button/direction mappings."""
+    from .constants import MODE_LABELS
+
+    active_profile = config.get("active_profile", "single_right")
+    profile_label = MODE_LABELS.get(active_profile, active_profile)
+    print(f"\nActive profile: {profile_label} ({active_profile})")
+
     mappings = config.get("mappings", {})
 
     print("\n=== Button Mappings ===")
@@ -70,6 +76,15 @@ def list_controls(config: dict) -> None:
     print(f"\nDeadzone: {config.get('deadzone', 0.15)}")
     print(f"Stick mode: {config.get('stick_mode', '4dir')}")
     print(f"Poll interval: {config.get('poll_interval', 0.01) * 1000:.0f}ms")
+
+    # Show available profiles
+    profiles = config.get("profiles", {})
+    if profiles:
+        print("\nAvailable profiles:")
+        for mode in profiles:
+            label = MODE_LABELS.get(mode, mode)
+            marker = " (active)" if mode == active_profile else ""
+            print(f"  {label} ({mode}){marker}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -203,6 +218,17 @@ def main() -> None:
 
     print(f"Controller: {js.get_name()}")
     print(f"Buttons: {js.get_numbuttons()}, Axes: {js.get_numaxes()}")
+
+    # Detect connection mode and load the appropriate profile
+    connection_mode = detect_connection_mode()
+    profile = get_profile(config, connection_mode)
+    profile_mappings = profile.get("mappings", config.get("mappings", {}))
+    config["mappings"] = profile_mappings
+    config["active_profile"] = connection_mode
+
+    from .constants import MODE_LABELS
+    profile_label = MODE_LABELS.get(connection_mode, connection_mode)
+    print(f"Connection mode: {profile_label} ({connection_mode})")
     print(f"Deadzone: {config['deadzone']}, Stick mode: {config['stick_mode']}")
 
     # Restore KNOWN_APPS from saved config
@@ -211,7 +237,7 @@ def main() -> None:
     if known_apps:
         set_known_apps(known_apps)
 
-    key_mapper = KeyMapper(config)
+    key_mapper = KeyMapper(config, mode=connection_mode)
     stop_event = threading.Event()
 
     # Initialize WindowCycler with all apps from config (not just code.exe default)
@@ -233,6 +259,7 @@ def main() -> None:
     # Create GUI and tray
     gui = MainWindow(
         key_mapper, key_mapper._window_cycler, config, stop_event,
+        connection_mode=connection_mode,
         battery_reader=battery_reader,
     )
     key_mapper.set_tk_root(gui.root)

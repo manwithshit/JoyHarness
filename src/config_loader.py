@@ -11,8 +11,10 @@ from pathlib import Path
 
 from .constants import (
     DEFAULT_CONFIG,
+    DEFAULT_CONFIGS,
     VALID_ACTIONS,
     BUTTON_NAMES,
+    BUTTON_NAMES_BY_MODE,
     STICK_DIRECTIONS,
 )
 
@@ -63,6 +65,9 @@ def merge_with_defaults(user_config: dict) -> dict:
 
     Deep-merges the mappings section: user-defined buttons/directions
     override defaults, unspecified ones are kept from defaults.
+
+    Supports both old format (top-level mappings) and new format (profiles).
+    Old format is automatically migrated to profiles.single_right.
     """
     result = copy.deepcopy(DEFAULT_CONFIG)
 
@@ -71,24 +76,76 @@ def merge_with_defaults(user_config: dict) -> dict:
         if key in user_config:
             result[key] = user_config[key]
 
+    # Override switch_scroll_interval
+    if "switch_scroll_interval" in user_config:
+        result["switch_scroll_interval"] = user_config["switch_scroll_interval"]
+
     # Preserve known_apps from user config (not in DEFAULT_CONFIG)
     if "known_apps" in user_config:
         result["known_apps"] = user_config["known_apps"]
 
-    # Deep merge mappings
-    if "mappings" in user_config:
-        result["mappings"] = {
-            "buttons": {**DEFAULT_CONFIG["mappings"]["buttons"]},
-            "stick_directions": {**DEFAULT_CONFIG["mappings"]["stick_directions"]},
+    # Handle profiles format (new) or old top-level mappings format
+    if "profiles" in user_config:
+        # New format: merge each profile with its mode-specific defaults
+        result["profiles"] = {}
+        for mode in ("single_right", "single_left", "dual"):
+            default_cfg = DEFAULT_CONFIGS.get(mode, DEFAULT_CONFIG)
+            default_mappings = default_cfg["mappings"]
+            result["profiles"][mode] = {"mappings": copy.deepcopy(default_mappings)}
+
+            user_profile = user_config["profiles"].get(mode, {})
+            user_mappings = user_profile.get("mappings", {})
+            if "buttons" in user_mappings:
+                result["profiles"][mode]["mappings"]["buttons"].update(user_mappings["buttons"])
+            if "stick_directions" in user_mappings:
+                result["profiles"][mode]["mappings"]["stick_directions"].update(
+                    user_mappings["stick_directions"]
+                )
+
+        # Keep top-level mappings in sync with active_profile (for backward compat with code that reads config["mappings"])
+        active_profile = user_config.get("active_profile", "single_right")
+        result["active_profile"] = active_profile
+        result["mappings"] = copy.deepcopy(
+            result["profiles"].get(active_profile, result["profiles"]["single_right"])["mappings"]
+        )
+    else:
+        # Old format: migrate top-level mappings into profiles.single_right
+        user_buttons = {}
+        user_stick = {}
+        if "mappings" in user_config:
+            user_buttons = user_config["mappings"].get("buttons", {})
+            user_stick = user_config["mappings"].get("stick_directions", {})
+
+        # Build merged single_right profile
+        single_right_mappings = {
+            "buttons": {**DEFAULT_CONFIG["mappings"]["buttons"], **user_buttons},
+            "stick_directions": {**DEFAULT_CONFIG["mappings"]["stick_directions"], **user_stick},
         }
-        if "buttons" in user_config["mappings"]:
-            result["mappings"]["buttons"].update(user_config["mappings"]["buttons"])
-        if "stick_directions" in user_config["mappings"]:
-            result["mappings"]["stick_directions"].update(
-                user_config["mappings"]["stick_directions"]
-            )
+
+        # Build full profiles dict with defaults for each mode
+        result["profiles"] = {}
+        for mode in ("single_right", "single_left", "dual"):
+            default_cfg = DEFAULT_CONFIGS.get(mode, DEFAULT_CONFIG)
+            result["profiles"][mode] = {
+                "mappings": copy.deepcopy(default_cfg["mappings"])
+            }
+        # Override single_right with user's data
+        result["profiles"]["single_right"]["mappings"] = single_right_mappings
+
+        result["active_profile"] = "single_right"
+        result["mappings"] = single_right_mappings
 
     return result
+
+
+def get_profile(config: dict, mode: str) -> dict:
+    """Get the mapping profile dict for the given connection mode.
+
+    Returns a dict with a 'mappings' key. Falls back to single_right if
+    the mode profile doesn't exist.
+    """
+    profiles = config.get("profiles", {})
+    return profiles.get(mode, profiles.get("single_right", {}))
 
 
 def validate_config(config: dict) -> list[str]:
@@ -101,8 +158,9 @@ def validate_config(config: dict) -> list[str]:
     - Stick mode is "4dir" or "8dir"
     - Every action type is valid
     - Every key name is recognized by the keyboard library
-    - Button names are known Joy-Con R buttons
+    - Button names are known Joy-Con buttons
     - Stick direction names are valid
+    - Validates all profiles if present
     """
     errors: list[str] = []
 
@@ -119,21 +177,38 @@ def validate_config(config: dict) -> list[str]:
     if not isinstance(poll_interval, (int, float)) or poll_interval <= 0:
         errors.append(f"poll_interval must be a positive number, got {poll_interval}")
 
-    mappings = config.get("mappings", {})
-
-    # Validate button mappings
-    for btn_name, mapping in mappings.get("buttons", {}).items():
-        if btn_name not in BUTTON_NAMES.values():
-            errors.append(f"Unknown button name: '{btn_name}'")
-            continue
-        errors.extend(_validate_mapping_entry(btn_name, mapping))
-
-    # Validate stick direction mappings
-    for dir_name, mapping in mappings.get("stick_directions", {}).items():
-        if dir_name not in STICK_DIRECTIONS:
-            errors.append(f"Unknown stick direction: '{dir_name}'")
-            continue
-        errors.extend(_validate_mapping_entry(dir_name, mapping))
+    # Validate profiles (new format)
+    profiles = config.get("profiles")
+    if profiles:
+        for mode, profile in profiles.items():
+            btn_names = BUTTON_NAMES_BY_MODE.get(mode, BUTTON_NAMES)
+            mappings = profile.get("mappings", {})
+            for btn_name, mapping in mappings.get("buttons", {}).items():
+                if btn_name not in btn_names.values():
+                    errors.append(f"[{mode}] Unknown button name: '{btn_name}'")
+                    continue
+                errors.extend(_validate_mapping_entry(f"[{mode}] {btn_name}", mapping))
+            for dir_name, mapping in mappings.get("stick_directions", {}).items():
+                if dir_name not in STICK_DIRECTIONS:
+                    errors.append(f"[{mode}] Unknown stick direction: '{dir_name}'")
+                    continue
+                errors.extend(_validate_mapping_entry(f"[{mode}] {dir_name}", mapping))
+    else:
+        # Old format: validate top-level mappings against all known button names
+        all_button_names = set()
+        for names in BUTTON_NAMES_BY_MODE.values():
+            all_button_names.update(names.values())
+        mappings = config.get("mappings", {})
+        for btn_name, mapping in mappings.get("buttons", {}).items():
+            if btn_name not in all_button_names:
+                errors.append(f"Unknown button name: '{btn_name}'")
+                continue
+            errors.extend(_validate_mapping_entry(btn_name, mapping))
+        for dir_name, mapping in mappings.get("stick_directions", {}).items():
+            if dir_name not in STICK_DIRECTIONS:
+                errors.append(f"Unknown stick direction: '{dir_name}'")
+                continue
+            errors.extend(_validate_mapping_entry(dir_name, mapping))
 
     return errors
 
