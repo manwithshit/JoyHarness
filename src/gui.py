@@ -11,9 +11,10 @@ import threading
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import (
-    BOTH, DANGER, INFO, LEFT, RIGHT, SECONDARY, SUCCESS, X, W,
+    BOTH, DANGER, INFO, LEFT, RIGHT, SECONDARY, SUCCESS, WARNING, X, W,
 )
 
+from .battery_reader import BatteryReader
 from .key_mapper import KeyMapper
 from .resizable import ResizableMixin
 from .window_switcher import WindowCycler, KNOWN_APPS
@@ -31,12 +32,14 @@ class MainWindow(ResizableMixin):
         config: dict,
         stop_event: threading.Event,
         on_minimize=None,
+        battery_reader: BatteryReader | None = None,
     ) -> None:
         self._key_mapper = key_mapper
         self._window_cycler = window_cycler
         self._config = config
         self._stop_event = stop_event
         self._on_minimize = on_minimize
+        self._battery_reader = battery_reader
 
         self._root = ttk.Window(
             title="NS Joy-Con R 键盘映射器",
@@ -124,6 +127,22 @@ class MainWindow(ResizableMixin):
         # Spacer
         ttk.Frame(main).pack(fill=BOTH, expand=True)
 
+        # Battery status bar
+        battery_frame = ttk.Frame(main)
+        battery_frame.pack(fill=X, pady=(0, 8))
+
+        self._battery_label = ttk.Label(
+            battery_frame,
+            text="🎮 检测电量中...",
+            font=("Microsoft YaHei UI", 9),
+            bootstyle=SECONDARY,
+        )
+        self._battery_label.pack(side=LEFT)
+
+        # Start periodic battery display update
+        if self._battery_reader:
+            self._root.after(2000, self._update_battery_display)
+
         # Bottom buttons
         btn_frame = ttk.Frame(main)
         btn_frame.pack(fill=X)
@@ -204,6 +223,34 @@ class MainWindow(ResizableMixin):
                 selected.append(KNOWN_APPS[display_name])
         self._window_cycler.app_names = selected
         logger.info("Window switch targets: %s", selected)
+
+    def _update_battery_display(self) -> None:
+        """Read battery state and update the label. Reschedules itself."""
+        try:
+            if self._battery_reader:
+                status, pct = self._battery_reader.get_state()
+                if status == "disconnected" or pct < 0:
+                    text = "🎮 未连接"
+                    style = SECONDARY
+                elif status == "charging":
+                    text = f"🔌 {pct}% 充电中"
+                    style = SUCCESS
+                elif pct <= 25:
+                    text = f"🪫 {pct}%"
+                    style = DANGER
+                elif pct <= 50:
+                    text = f"🎮 {pct}%"
+                    style = WARNING
+                else:
+                    text = f"🎮 {pct}%"
+                    style = SUCCESS
+                self._battery_label.configure(text=text, bootstyle=style)
+            # Reschedule
+            if not self._stop_event.is_set():
+                self._root.after(3000, self._update_battery_display)
+        except Exception:
+            # Widget may be destroyed during shutdown — ignore
+            pass
 
     def _on_minimize_click(self) -> None:
         """Minimize to system tray."""

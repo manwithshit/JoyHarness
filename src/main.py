@@ -27,6 +27,7 @@ if __package__ is None:
 
 import pygame
 
+from .battery_reader import BatteryReader
 from .config_loader import load_config, USER_CONFIG_PATH
 from .gui import MainWindow
 from .joycon_reader import find_joycon, run_discover_mode, run_polling_loop, wait_for_reconnection
@@ -225,8 +226,15 @@ def main() -> None:
     )
     poll_thread.start()
 
+    # Start battery reader
+    battery_reader = BatteryReader(stop_event)
+    battery_reader.start()
+
     # Create GUI and tray
-    gui = MainWindow(key_mapper, key_mapper._window_cycler, config, stop_event)
+    gui = MainWindow(
+        key_mapper, key_mapper._window_cycler, config, stop_event,
+        battery_reader=battery_reader,
+    )
     key_mapper.set_tk_root(gui.root)
 
     # Start tray icon in background thread
@@ -243,6 +251,7 @@ def main() -> None:
     stop_event.set()
     icon.stop()
     poll_thread.join(timeout=2.0)
+    battery_reader.join(timeout=2.0)
     key_mapper.release_all()
     pygame.quit()
     print("Clean exit. All keys released.")
