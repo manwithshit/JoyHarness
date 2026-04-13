@@ -31,6 +31,7 @@ from .battery_reader import BatteryReader
 from .config_loader import load_config, get_profile, USER_CONFIG_PATH
 from .gui import MainWindow
 from .joycon_reader import find_joycon, detect_connection_mode, run_discover_mode, run_polling_loop, wait_for_reconnection
+from .keep_alive import KeepAliveManager
 from .key_mapper import KeyMapper
 from .tray_icon import create_tray_icon, run_tray
 
@@ -248,11 +249,15 @@ def main() -> None:
     battery_reader = BatteryReader(stop_event)
     battery_reader.start()
 
+    # Start keep-alive manager (disabled by default, toggled via GUI)
+    keep_alive_manager = KeepAliveManager(stop_event)
+
     # Create GUI first so we can pass its mode-change callback to polling loop
     gui = MainWindow(
         key_mapper, key_mapper._window_cycler, config, stop_event,
         connection_mode=connection_mode,
         battery_reader=battery_reader,
+        keep_alive_manager=keep_alive_manager,
     )
     key_mapper.set_tk_root(gui.root)
 
@@ -279,6 +284,7 @@ def main() -> None:
     icon.stop()
     poll_thread.join(timeout=2.0)
     battery_reader.join(timeout=2.0)
+    keep_alive_manager.join(timeout=2.0)
     key_mapper.release_all()
     pygame.quit()
     print("Clean exit. All keys released.")

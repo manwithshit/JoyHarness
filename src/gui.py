@@ -34,6 +34,7 @@ class MainWindow(ResizableMixin):
         on_minimize=None,
         battery_reader: BatteryReader | None = None,
         connection_mode: str = "single_right",
+        keep_alive_manager=None,
     ) -> None:
         self._key_mapper = key_mapper
         self._window_cycler = window_cycler
@@ -42,6 +43,7 @@ class MainWindow(ResizableMixin):
         self._on_minimize = on_minimize
         self._battery_reader = battery_reader
         self._connection_mode = connection_mode
+        self._keep_alive_manager = keep_alive_manager
 
         self._root = ttk.Window(
             title="NS Joy-Con R 键盘映射器",
@@ -114,6 +116,17 @@ class MainWindow(ResizableMixin):
             bootstyle=SUCCESS,
         )
         stick_cb.pack(anchor=W, pady=(0, 12))
+
+        # Keep-alive toggle
+        self._keep_alive_var = ttk.BooleanVar(value=False)
+        keep_alive_cb = ttk.Checkbutton(
+            main,
+            text="  保持手柄唤醒",
+            variable=self._keep_alive_var,
+            command=self._on_keep_alive_toggle,
+            bootstyle=SUCCESS,
+        )
+        keep_alive_cb.pack(anchor=W, pady=(0, 12))
 
         # Window switch app selection
         app_label = ttk.Label(
@@ -201,6 +214,13 @@ class MainWindow(ResizableMixin):
         if not enabled:
             self._key_mapper.release_all()
         logger.info("Stick mapping %s", "enabled" if enabled else "disabled")
+
+    def _on_keep_alive_toggle(self) -> None:
+        """Handle keep-alive toggle."""
+        enabled = self._keep_alive_var.get()
+        if self._keep_alive_manager:
+            self._keep_alive_manager.set_enabled(enabled)
+        logger.info("Keep-alive %s", "enabled" if enabled else "disabled")
 
     def _build_app_checkboxes(self) -> None:
         """Build/refresh app checkboxes from KNOWN_APPS."""
