@@ -116,7 +116,8 @@
     "飞书": "feishu.exe"
   },
   "selected_apps": [
-    "code.exe"
+    "code.exe",
+    "chrome.exe"
   ],
   "profiles": {
     "single_right": {
