@@ -270,6 +270,8 @@ DEFAULT_CONFIG: dict = {
     "deadzone": DEFAULT_DEADZONE,
     "poll_interval": POLL_INTERVAL,
     "stick_mode": "4dir",
+    "stick_enabled": True,
+    "keep_alive_enabled": True,
     "mappings": DEFAULT_MAPPINGS,
 }
 
@@ -279,6 +281,8 @@ DEFAULT_CONFIG_LEFT: dict = {
     "deadzone": DEFAULT_DEADZONE,
     "poll_interval": POLL_INTERVAL,
     "stick_mode": "4dir",
+    "stick_enabled": True,
+    "keep_alive_enabled": True,
     "mappings": DEFAULT_MAPPINGS_LEFT,
 }
 
@@ -288,6 +292,8 @@ DEFAULT_CONFIG_DUAL: dict = {
     "deadzone": DEFAULT_DEADZONE,
     "poll_interval": POLL_INTERVAL,
     "stick_mode": "4dir",
+    "stick_enabled": True,
+    "keep_alive_enabled": True,
     "mappings": DEFAULT_MAPPINGS_DUAL,
 }
 

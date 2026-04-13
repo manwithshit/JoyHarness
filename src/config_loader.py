@@ -72,7 +72,7 @@ def merge_with_defaults(user_config: dict) -> dict:
     result = copy.deepcopy(DEFAULT_CONFIG)
 
     # Override top-level settings
-    for key in ("version", "description", "deadzone", "poll_interval", "stick_mode"):
+    for key in ("version", "description", "deadzone", "poll_interval", "stick_mode", "stick_enabled", "keep_alive_enabled"):
         if key in user_config:
             result[key] = user_config[key]
 
@@ -83,6 +83,10 @@ def merge_with_defaults(user_config: dict) -> dict:
     # Preserve known_apps from user config (not in DEFAULT_CONFIG)
     if "known_apps" in user_config:
         result["known_apps"] = user_config["known_apps"]
+
+    # Preserve selected_apps from user config (not in DEFAULT_CONFIG)
+    if "selected_apps" in user_config:
+        result["selected_apps"] = user_config["selected_apps"]
 
     # Handle profiles format (new) or old top-level mappings format
     if "profiles" in user_config:

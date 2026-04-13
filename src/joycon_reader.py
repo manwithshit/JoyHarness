@@ -100,7 +100,7 @@ def detect_connection_mode() -> str:
 
         # Check for combined device (contains both "l" and "r")
         if "l" in name and "r" in name:
-            logger.info("Detected combined Joy-Con device: %s", js.get_name())
+            logger.debug("Detected combined Joy-Con device: %s", js.get_name())
             return "dual"
 
         if "l" in name:
@@ -111,19 +111,19 @@ def detect_connection_mode() -> str:
             # Unidentified side — check number of buttons as heuristic
             # Combined devices typically have 20+ buttons
             if js.get_numbuttons() >= 18:
-                logger.info("Detected combined Joy-Con device (high button count): %s", js.get_name())
+                logger.debug("Detected combined Joy-Con device (high button count): %s", js.get_name())
                 return "dual"
             # Default to right if single device
             has_right = True
 
     if has_left and has_right:
-        logger.info("Detected both L and R Joy-Cons (separate devices)")
+        logger.debug("Detected both L and R Joy-Cons (separate devices)")
         return "dual"
     elif has_left:
-        logger.info("Detected single left Joy-Con")
+        logger.debug("Detected single left Joy-Con")
         return "single_left"
     else:
-        logger.info("Detected single right Joy-Con")
+        logger.debug("Detected single right Joy-Con")
         return "single_right"
 
 

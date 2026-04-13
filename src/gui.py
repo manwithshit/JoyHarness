@@ -15,6 +15,7 @@ from ttkbootstrap.constants import (
 )
 
 from .battery_reader import BatteryReader
+from .config_loader import save_config
 from .key_mapper import KeyMapper
 from .resizable import ResizableMixin
 from .window_switcher import WindowCycler, KNOWN_APPS
@@ -48,7 +49,7 @@ class MainWindow(ResizableMixin):
         self._root = ttk.Window(
             title="NS Joy-Con R 键盘映射器",
             themename="darkly",
-            size=(453, 400),
+            size=(453, 450),
             resizable=(True, True),
         )
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -107,7 +108,7 @@ class MainWindow(ResizableMixin):
         main.pack(fill=BOTH, expand=True)
 
         # Stick enable toggle
-        self._stick_var = ttk.BooleanVar(value=True)
+        self._stick_var = ttk.BooleanVar(value=self._config.get("stick_enabled", True))
         stick_cb = ttk.Checkbutton(
             main,
             text="  启用摇杆映射",
@@ -118,7 +119,7 @@ class MainWindow(ResizableMixin):
         stick_cb.pack(anchor=W, pady=(0, 12))
 
         # Keep-alive toggle
-        self._keep_alive_var = ttk.BooleanVar(value=False)
+        self._keep_alive_var = ttk.BooleanVar(value=self._config.get("keep_alive_enabled", True))
         keep_alive_cb = ttk.Checkbutton(
             main,
             text="  保持手柄唤醒",
@@ -210,6 +211,7 @@ class MainWindow(ResizableMixin):
     def _on_stick_toggle(self) -> None:
         """Handle stick mapping toggle."""
         enabled = self._stick_var.get()
+        self._config["stick_enabled"] = enabled
         self._key_mapper._stick_enabled = enabled
         if not enabled:
             self._key_mapper.release_all()
@@ -218,6 +220,7 @@ class MainWindow(ResizableMixin):
     def _on_keep_alive_toggle(self) -> None:
         """Handle keep-alive toggle."""
         enabled = self._keep_alive_var.get()
+        self._config["keep_alive_enabled"] = enabled
         if self._keep_alive_manager:
             self._keep_alive_manager.set_enabled(enabled)
         logger.info("Keep-alive %s", "enabled" if enabled else "disabled")
@@ -229,11 +232,11 @@ class MainWindow(ResizableMixin):
             widget.destroy()
         self._app_vars.clear()
 
-        # Get current cycler targets to know which are checked
-        active_apps = set(self._window_cycler.app_names)
+        # Get selected apps from config to know which are checked
+        selected_apps = set(self._config.get("selected_apps", []))
 
         for display_name, process_name in KNOWN_APPS.items():
-            var = ttk.BooleanVar(value=(process_name in active_apps))
+            var = ttk.BooleanVar(value=(process_name in selected_apps))
             self._app_vars[display_name] = var
             cb = ttk.Checkbutton(
                 self._app_frame,
@@ -276,6 +279,8 @@ class MainWindow(ResizableMixin):
             if var.get():
                 selected.append(KNOWN_APPS[display_name])
         self._window_cycler.app_names = selected
+        # Persist selected app process names to config
+        self._config["selected_apps"] = selected
         logger.info("Window switch targets: %s", selected)
 
     def _update_battery_display(self) -> None:
@@ -326,6 +331,7 @@ class MainWindow(ResizableMixin):
     def _on_close(self) -> None:
         """Handle window close — exit the program."""
         logger.info("Main window closed, stopping...")
+        save_config(self._config)
         self._stop_event.set()
         self._root.destroy()
 

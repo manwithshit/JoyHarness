@@ -27,9 +27,9 @@ def battery_label(nibble: int) -> tuple[str, int]:
     Values 0x00-0x08: discharging, each step ~12.5%.
     Values 0x09-0x0F: charging.
     """
-    if nibble <= 0x08:
+    if 0x01 <= nibble <= 0x08:
         return ("discharging", min(nibble * 125 // 10, 100))
-    elif nibble <= 0x0F:
+    elif 0x09 <= nibble <= 0x0F:
         return ("charging", min((nibble & 0x0F) * 125 // 10, 100))
     return ("unknown", -1)
 
@@ -57,6 +57,12 @@ def _safe_close(dev) -> None:
 def _read_battery_from_device(dev_info: dict, stop_event: threading.Event) -> tuple[str, int] | None:
     """Open a single Joy-Con HID device and read one battery report.
 
+    Does NOT send any commands to the device — just drains the already-
+    buffered input reports and extracts the battery nibble from the first
+    valid 0x30/0x3F frame found.  This avoids disrupting the report-mode
+    state that pygame/SDL is relying on and prevents the 0% spike caused
+    by sending a 'set report mode' command mid-session.
+
     Returns (status, pct) on success, None on failure.
     """
     dev = hid.device()
@@ -66,24 +72,13 @@ def _read_battery_from_device(dev_info: dict, stop_event: threading.Event) -> tu
         logger.warning("Cannot open HID for battery (%s): %s", dev_info["_side"], e)
         return None
 
-    # Set input report mode to 0x30
-    report_mode_cmd = bytes([
-        0x01, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00,
-        0x03,  # subcommand: set report mode
-        0x30,  # mode: standard full
-    ])
-    try:
-        dev.write(report_mode_cmd)
-    except OSError:
-        _safe_close(dev)
-        return None
-
-    # Read until we get a valid battery report or give up
-    for _ in range(50):
+    # The Joy-Con is already streaming 0x30 reports at ~60 Hz while in use.
+    # Read a small burst of non-blocking reads to find one valid frame.
+    # timeout_ms=0 → non-blocking; we try up to 20 times (≈one poll cycle worth).
+    result = None
+    for _ in range(20):
         try:
-            data = dev.read(64, timeout_ms=500)
+            data = dev.read(64, timeout_ms=0)
         except OSError:
             break
         if not data or len(data) < 3:
@@ -91,11 +86,11 @@ def _read_battery_from_device(dev_info: dict, stop_event: threading.Event) -> tu
         if data[0] not in (0x30, 0x3F):
             continue
         battery_nibble = (data[2] >> 4) & 0x0F
-        _safe_close(dev)
-        return battery_label(battery_nibble)
+        result = battery_label(battery_nibble)
+        break
 
     _safe_close(dev)
-    return None
+    return result
 
 
 class BatteryReader:
@@ -162,12 +157,13 @@ class BatteryReader:
                 found_sides.add(side)
 
                 result = _read_battery_from_device(dev_info, self._stop_event)
-                if result:
+                if result is not None:
                     status, pct = result
                     self._set_state(side, status, pct)
                     logger.debug("Battery %s: %s %d%%", side, status, pct)
-                else:
-                    self._set_state(side, "disconnected", -1)
+                # else: could not open device — leave previous state intact;
+                # the side will be marked disconnected only when HID enumerate
+                # stops listing it (handled by the found_sides check below).
 
             # Mark missing sides as disconnected
             for side in ("L", "R"):

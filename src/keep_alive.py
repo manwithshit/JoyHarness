@@ -80,11 +80,7 @@ class KeepAliveManager:
                     dev.open_path(dev_info["path"])
                     _send_rumble(dev, _STOP, self._counter)
                     self._counter += 1
-                    logger.debug(
-                        "Keep-alive sent to %04X (path=%s)",
-                        pid,
-                        dev_info["path"],
-                    )
+                    logger.info("Keep-alive sent to %04X", pid)
                 except OSError as e:
                     logger.debug("Keep-alive HID open failed: %s", e)
                 finally:

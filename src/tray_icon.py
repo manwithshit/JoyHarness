@@ -1,4 +1,4 @@
-"""System tray icon for NS Joy-Con R Keyboard Mapper.
+"""System tray icon for JoyHarness.
 
 Provides a system tray icon with right-click context menu.
 Uses pystray for cross-platform tray support and Pillow for icon generation.
@@ -77,9 +77,9 @@ def create_tray_icon(
     menu = pystray.Menu(*menu_items)
 
     icon = pystray.Icon(
-        name="NS Joy-Con R",
+        name="JoyHarness",
         icon=image,
-        title="NS Joy-Con R 键盘映射",
+        title="JoyHarness",
         menu=menu,
     )
 

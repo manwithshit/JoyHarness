@@ -13,6 +13,7 @@ Usage:
 import argparse
 import ctypes
 import logging
+import os
 import sys
 import threading
 from pathlib import Path
@@ -24,6 +25,13 @@ if __package__ is None:
     if _project_root not in sys.path:
         sys.path.insert(0, _project_root)
     __package__ = "src"
+
+# Prevent SDL2 from merging Joy-Con L+R into a single combined device.
+# Without this, SDL2 exclusively consumes Joy-Con R's HID report stream,
+# making it impossible for the battery reader to receive any reports from R.
+# With this set, both Joy-Cons remain independent Joystick devices and
+# hidapi can concurrently read battery reports from each one.
+os.environ.setdefault("SDL_JOYSTICK_HIDAPI_COMBINE_JOY_CONS", "0")
 
 import pygame
 
@@ -241,16 +249,18 @@ def main() -> None:
     key_mapper = KeyMapper(config, mode=connection_mode)
     stop_event = threading.Event()
 
-    # Initialize WindowCycler with all apps from config (not just code.exe default)
-    if known_apps:
-        key_mapper._window_cycler.app_names = list(known_apps.values())
+    # Initialize WindowCycler with selected apps from config
+    selected_apps = config.get("selected_apps")
+    if selected_apps:
+        key_mapper._window_cycler.app_names = selected_apps
 
     # Start battery reader
     battery_reader = BatteryReader(stop_event)
     battery_reader.start()
 
-    # Start keep-alive manager (disabled by default, toggled via GUI)
+    # Start keep-alive manager (read enabled state from config)
     keep_alive_manager = KeepAliveManager(stop_event)
+    keep_alive_manager.set_enabled(config.get("keep_alive_enabled", True))
 
     # Create GUI first so we can pass its mode-change callback to polling loop
     gui = MainWindow(
