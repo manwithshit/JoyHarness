@@ -19,3 +19,4 @@ scripts/
 Doc/
 Docs/
 CLAUDE.md
+config/user.json
