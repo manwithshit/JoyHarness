@@ -158,11 +158,10 @@ class WindowCycler:
     def next(self) -> WindowInfo | None:
         """Switch to the next window in the list.
 
-        Auto-refreshes if no windows cached.
+        Always refreshes the window list before cycling to reflect closed/opened windows.
         Returns the WindowInfo switched to, or None if no windows found.
         """
-        if not self._windows:
-            self.refresh()
+        self.refresh()
 
         if not self._windows:
             logger.warning("No windows found for %s", self._app_names)

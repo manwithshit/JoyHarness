@@ -17,4 +17,5 @@ config/user.json
 nsjc.log
 scripts/
 Doc/
+Docs/
 CLAUDE.md
