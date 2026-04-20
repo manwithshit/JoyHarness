@@ -294,19 +294,30 @@ def main() -> None:
     )
     poll_thread.start()
 
-    # Start tray icon in background thread
-    icon = create_tray_icon(stop_event, on_show_window=gui.show)
-    tray_thread = threading.Thread(target=run_tray, args=(icon,), daemon=True)
-    tray_thread.start()
+    # Start tray icon in background thread (Windows only)
+    # macOS: pystray requires NSApplication.run on the main thread, which
+    # conflicts with tkinter's mainloop. Since macOS has Dock + Cmd+Tab for
+    # app switching, the tray icon is not essential. Skipping it avoids a
+    # 99% CPU spin caused by NSApplication threading violations.
+    icon = None
+    tray_thread = None
+    if sys.platform != "darwin":
+        icon = create_tray_icon(stop_event, on_show_window=gui.show)
+        tray_thread = threading.Thread(target=run_tray, args=(icon,), daemon=True)
+        tray_thread.start()
 
-    print("GUI and tray active. Close window or right-click tray to quit.")
+    if sys.platform == "darwin":
+        print("GUI active. Close window to quit.")
+    else:
+        print("GUI and tray active. Close window or right-click tray to quit.")
 
     # Run GUI in main thread (blocks until window closed)
     gui.run()
 
     # Cleanup
     stop_event.set()
-    icon.stop()
+    if icon is not None:
+        icon.stop()
     poll_thread.join(timeout=2.0)
     battery_reader.join(timeout=2.0)
     keep_alive_manager.join(timeout=2.0)

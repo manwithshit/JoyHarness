@@ -194,13 +194,14 @@ class MainWindow(ResizableMixin):
             width=12,
         ).pack(side=LEFT)
 
-        ttk.Button(
-            btn_frame,
-            text="最小化到托盘",
-            command=self._on_minimize_click,
-            bootstyle=SECONDARY,
-            width=12,
-        ).pack(side=RIGHT)
+        if sys.platform != "darwin":
+            ttk.Button(
+                btn_frame,
+                text="最小化到托盘",
+                command=self._on_minimize_click,
+                bootstyle=SECONDARY,
+                width=12,
+            ).pack(side=RIGHT)
 
     def _center_window(self) -> None:
         """Center the window on screen."""
