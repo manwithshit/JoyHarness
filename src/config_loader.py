@@ -4,6 +4,8 @@ Loads JSON config files, validates key names and action types,
 merges user config with built-in defaults, and saves config to disk.
 """
 
+from __future__ import annotations
+
 import copy
 import json
 import logging
@@ -252,13 +254,9 @@ def _validate_mapping_entry(name: str, mapping: dict) -> list[str]:
 
 
 def _is_valid_key(key_name: str) -> bool:
-    """Check if a key name is recognized by the keyboard library."""
-    import keyboard
-    try:
-        codes = keyboard.key_to_scan_codes(key_name)
-        return len(codes) > 0
-    except (ValueError, KeyError):
-        return False
+    """Check if a key name is recognized by the keyboard backend."""
+    from .keyboard_output import is_valid_key
+    return is_valid_key(key_name)
 
 
 def save_config(config: dict, path: str | None = None) -> None:
