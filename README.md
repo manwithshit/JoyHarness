@@ -8,7 +8,11 @@ Map Nintendo Switch Joy-Con controllers to keyboard shortcuts via Bluetooth. Sup
 >
 > **This fork** adds full **macOS support** to the original [VaderCheng/JoyHarness](https://github.com/VaderCheng/JoyHarness) (Windows-only). See [Changes in this fork](#changes-in-this-fork) for details.
 
-![JoyHarness GUI](assets/screenshot.png)
+## 界面预览 / Preview
+
+| Windows | macOS |
+|---------|-------|
+| ![Windows](assets/screenshot.png) | ![macOS](assets/screenshot-mac.png) |
 
 ## 功能特性 / Features
 
