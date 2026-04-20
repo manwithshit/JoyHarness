@@ -226,6 +226,11 @@ src/
 - `find_windows` 使用的是 `kCGWindowOwnerName`，这是**本地化名**。中文系统下微信进程名是 `微信`，不是 `WeChat`
 - 配置时进程名**大小写敏感**（`Antigravity` ≠ `antigravity`）
 
+### 侧键 R / SL / SR 未正确触发
+- 原版中 SL / SR 侧键映射到 window_switch 功能，但在 macOS 上 SDL2 的侧键事件检测不稳定，时灵时不灵
+- 临时方案：已将默认映射改为 **F3**（Mission Control），用户可自行在配置中改回其他键
+- 根本原因待排查（可能是 macOS 蓝牙 HID 报告格式与 Windows 不同），欢迎贡献修复
+
 ## 本 Fork 变更 / Changes in this fork
 
 本 Fork 在 [@VaderCheng](https://github.com/VaderCheng/JoyHarness) 的 Windows 原版基础上增加了 macOS 支持。主要变更：
@@ -250,6 +255,9 @@ This fork adds macOS support to the original Windows-only project by [@VaderChen
 
 ### 性能优化 / Performance
 - **Window switcher 重写** — 用 PyObjC + Quartz 替代 AppleScript 子进程调用，延迟从 ~400-700ms 降至 ~10-30ms。PyObjC 未安装时自动回退到 AppleScript。
+
+### 已知问题 / Known Issues
+- **侧键 SL/SR 在 macOS 上不稳定** — SDL2 对侧键的蓝牙 HID 报告检测时灵时不灵，原版的 window_switch 映射不可靠。临时方案：默认映射改为 F3。欢迎熟悉 macOS 蓝牙 HID 的朋友一起排查。
 
 ## 许可证 / License
 
