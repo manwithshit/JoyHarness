@@ -45,7 +45,7 @@ if sys.platform == "darwin":
 import pygame
 
 from .battery_reader import BatteryReader
-from .config_loader import load_config, get_profile, USER_CONFIG_PATH
+from .config_loader import load_config, get_profile, get_platform_config_path, USER_CONFIG_PATH
 from .gui import MainWindow
 from .joycon_reader import find_joycon, detect_connection_mode, run_discover_mode, run_polling_loop, wait_for_reconnection
 from .keep_alive import KeepAliveManager
@@ -203,10 +203,10 @@ def main() -> None:
     if not args.no_admin_warn and not has_required_permissions():
         print(get_permission_warning())
 
-    # Load config — prefer user config if it exists
+    # Load config — prefer platform-specific user config if it exists
     config_path = args.config
-    if config_path is None and Path(USER_CONFIG_PATH).exists():
-        config_path = USER_CONFIG_PATH
+    if config_path is None:
+        config_path = get_platform_config_path()
     try:
         config = load_config(config_path)
     except (FileNotFoundError, ValueError) as e:
@@ -230,8 +230,13 @@ def main() -> None:
         run_discover_mode(args.joystick)
         return
 
-    # Normal mode
-    pygame.init()
+    # Normal mode — selectively init only the pygame subsystems we need.
+    # pygame.init() starts ALL subsystems (video, audio, font, mixer, etc.)
+    # which on macOS causes SDL2 to install Cocoa event handlers that
+    # interfere with tkinter's window management (blocking minimize button).
+    # We only need display (for event pump), joystick, and implicitly timer.
+    pygame.display.init()
+    pygame.joystick.init()
 
     js = find_joycon(args.joystick)
     if js is None:
@@ -322,7 +327,8 @@ def main() -> None:
     battery_reader.join(timeout=2.0)
     keep_alive_manager.join(timeout=2.0)
     key_mapper.release_all()
-    pygame.quit()
+    pygame.joystick.quit()
+    pygame.display.quit()
     print("Clean exit. All keys released.")
 
 

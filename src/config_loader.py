@@ -23,7 +23,28 @@ from .constants import (
 logger = logging.getLogger(__name__)
 
 
-USER_CONFIG_PATH = str(Path(__file__).resolve().parent.parent / "config" / "user.json")
+_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+USER_CONFIG_PATH = str(_CONFIG_DIR / "user.json")
+
+
+def get_platform_config_path() -> str | None:
+    """Return the best config file path for the current platform.
+
+    Priority:
+    1. user.json (always preferred if it exists)
+    2. user-macos.json (macOS) or user-windows.json (Windows)
+    """
+    import sys
+    user = _CONFIG_DIR / "user.json"
+    if user.exists():
+        return str(user)
+    if sys.platform == "darwin":
+        plat = _CONFIG_DIR / "user-macos.json"
+    else:
+        plat = _CONFIG_DIR / "user-windows.json"
+    if plat.exists():
+        return str(plat)
+    return None
 
 
 def load_config(path: str | None = None) -> dict:
